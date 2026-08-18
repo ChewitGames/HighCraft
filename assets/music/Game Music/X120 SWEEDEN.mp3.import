@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cdxphe0knidlh"
+path="res://.godot/imported/X120 SWEEDEN.mp3-67536ecc201a957376c1dd2588fa21ac.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/X120 SWEEDEN.mp3"
+dest_files=["res://.godot/imported/X120 SWEEDEN.mp3-67536ecc201a957376c1dd2588fa21ac.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

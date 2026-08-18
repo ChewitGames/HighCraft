@@ -1,0 +1,21 @@
+{
+  "_comment": "X120 soundtrack. Folders under res://assets/music/. Every overworld+menu track also exists in-game as a record (Schallplatte). Dimension profiles describe the audio processing chain.",
+  "folders": {"game": "Game Music", "menu": "Main Menu", "charlie": "Charlie Emily"},
+  "overworld_tracks": [
+	"X120 chris.mp3","X120 danny.mp3","X120 dryhands.mp3","X120 Equinoxe.mp3","X120 excuse.mp3",
+	"X120 Felt_Weather_1.mp3","X120 haggstorm.mp3","X120 living mice.mp3","X120 mice on venus1.mp3",
+	"X120 mice on venus2.mp3","X120 Nights.mp3","X120 oxygene.mp3","X120 subwoofer_lullaby.mp3",
+	"X120 SWEEDEN.mp3","X120 SWEETEN2.mp3","X120 WetHands.mp3"
+  ],
+  "beta_tracks": ["X120 Clark.mp3","X120 HIGHCRAFT.mp3","X120 Refuse.mp3","X120 Regrets.mp3", "Softly, I Remember (1).mp3", "Softly, I Remember.mp3", "The Quiet Between Stars (1).mp3", "The Quiet Between Stars (2).mp3", "The Quiet Between Stars (3).mp3", "The Quiet Between Stars.mp3"],
+  "menu_tracks": ["X120 Clark.mp3","X120 beginning.mp3","X120 Felt_Weather_1.mp3","X120 mog city.mp3","X120.mp3", "X120 HIGHCRAFT.mp3"],
+  "charlie_emily_track": "X120 Left Behind.mp3",
+  "overworld_gap_seconds": [600, 1200],
+  "profiles": {
+	"overworld": {"volume":1.0,"reverb":0.0,"lowpass_hz":0,"reversed":false,"distortion":0.0,"sub_drone":false,"no_bass":false,"no_rhythm":false,"long_envelope":false},
+	"hell":      {"volume":0.9,"reverb":0.4,"lowpass_hz":800,"reversed":true,"distortion":0.15,"sub_drone":true,"no_bass":false,"no_rhythm":false,"long_envelope":false},
+	"end":       {"volume":0.3,"reverb":0.7,"lowpass_hz":0,"reversed":false,"distortion":0.0,"sub_drone":false,"no_bass":true,"no_rhythm":true,"long_envelope":true},
+	"heaven":    {"volume":0.5,"reverb":0.5,"lowpass_hz":0,"reversed":false,"distortion":0.0,"sub_drone":false,"no_bass":false,"no_rhythm":false,"long_envelope":true},
+	"menu":      {"volume":1.0,"reverb":0.0,"lowpass_hz":0,"reversed":false,"distortion":0.0,"sub_drone":false,"no_bass":false,"no_rhythm":false,"long_envelope":false}
+  }
+}

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://chwajk8bqqteu"
+path="res://.godot/imported/Softly, I Remember.mp3-52de7bdb61d87974a8e9b3effbbde8af.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/Softly, I Remember.mp3"
+dest_files=["res://.godot/imported/Softly, I Remember.mp3-52de7bdb61d87974a8e9b3effbbde8af.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

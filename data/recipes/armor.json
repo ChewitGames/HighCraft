@@ -1,0 +1,31 @@
+[
+  { "result": "leather_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "leather" } },
+  { "result": "leather_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "leather" } },
+  { "result": "leather_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "leather" } },
+  { "result": "leather_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "leather" } },
+
+  { "result": "copper_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "copper_ingot" } },
+  { "result": "copper_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "copper_ingot" } },
+  { "result": "copper_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "copper_ingot" } },
+  { "result": "copper_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "copper_ingot" } },
+
+  { "result": "stone_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "cobblestone" } },
+  { "result": "stone_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "cobblestone" } },
+  { "result": "stone_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "cobblestone" } },
+  { "result": "stone_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "cobblestone" } },
+
+  { "result": "iron_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "iron_ingot" } },
+  { "result": "iron_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "iron_ingot" } },
+  { "result": "iron_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "iron_ingot" } },
+  { "result": "iron_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "iron_ingot" } },
+
+  { "result": "diamond_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "diamond" } },
+  { "result": "diamond_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "diamond" } },
+  { "result": "diamond_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "diamond" } },
+  { "result": "diamond_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "diamond" } },
+
+  { "result": "gold_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "gold_ingot" } },
+  { "result": "gold_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "gold_ingot" } },
+  { "result": "gold_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "gold_ingot" } },
+  { "result": "gold_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "gold_ingot" } }
+]

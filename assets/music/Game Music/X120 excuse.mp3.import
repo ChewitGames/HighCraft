@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bjsk5mslv1vv1"
+path="res://.godot/imported/X120 excuse.mp3-f19697a00791a43f3757f995953a4337.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/X120 excuse.mp3"
+dest_files=["res://.godot/imported/X120 excuse.mp3-f19697a00791a43f3757f995953a4337.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

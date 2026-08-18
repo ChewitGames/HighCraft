@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bjktrsg32fiet"
+path="res://.godot/imported/X120 danny.mp3-6e4bdbec9280a599feda1d5711295f1c.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/X120 danny.mp3"
+dest_files=["res://.godot/imported/X120 danny.mp3-6e4bdbec9280a599feda1d5711295f1c.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

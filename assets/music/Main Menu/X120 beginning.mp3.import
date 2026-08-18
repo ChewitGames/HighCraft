@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cnk4ikrjk0w7c"
+path="res://.godot/imported/X120 beginning.mp3-499b3bdf09c0a56462147d21829b0f77.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Main Menu/X120 beginning.mp3"
+dest_files=["res://.godot/imported/X120 beginning.mp3-499b3bdf09c0a56462147d21829b0f77.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,1179 @@
+{
+	"_comment": "Block definitions. tier: 0=hand 1=wood 2=stone 3=copper 4=iron 5=diamond. drops: [] = drops itself.",
+	"wool_colors": [
+		"white",
+		"orange",
+		"magenta",
+		"light_blue",
+		"yellow",
+		"lime",
+		"pink",
+		"gray",
+		"light_gray",
+		"cyan",
+		"purple",
+		"blue",
+		"brown",
+		"green",
+		"red",
+		"black"
+	],
+	"blocks": [
+		{
+			"id": "stone",
+			"name": "Stone",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"cobblestone",
+					1
+				]
+			]
+		},
+		{
+			"id": "cobblestone",
+			"name": "Cobblestone",
+			"hardness": 2.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "dirt",
+			"name": "Dirt",
+			"hardness": 0.5,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "grass_block",
+			"name": "Grass Block",
+			"hardness": 0.6,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"dirt",
+					1
+				]
+			]
+		},
+		{
+			"id": "sand",
+			"name": "Sand",
+			"hardness": 0.5,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "sandstone",
+			"name": "Sandstone",
+			"hardness": 0.8,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "gravel",
+			"name": "Gravel",
+			"hardness": 0.6,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "clay",
+			"name": "Clay",
+			"hardness": 0.6,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"clay_ball",
+					4
+				]
+			]
+		},
+		{
+			"id": "obsidian",
+			"name": "Obsidian",
+			"hardness": 50.0,
+			"tool": "pickaxe",
+			"tier": 5,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "bedrock",
+			"name": "Bedrock",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "water",
+			"name": "Water",
+			"hardness": 100.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": []
+		},
+		{
+			"id": "lava",
+			"name": "Lava",
+			"hardness": 100.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 15,
+			"transparent": true,
+			"drops": []
+		},
+		{
+			"id": "netherrack",
+			"name": "Netherrack",
+			"hardness": 0.4,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "soul_sand",
+			"name": "Soul Sand",
+			"hardness": 0.5,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "glowstone",
+			"name": "Glowstone",
+			"hardness": 0.3,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 15,
+			"transparent": true,
+			"drops": [
+				[
+					"glowstone_dust",
+					4
+				]
+			]
+		},
+		{
+			"id": "end_stone",
+			"name": "End Stone",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "ice",
+			"name": "Ice",
+			"hardness": 0.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": []
+		},
+		{
+			"id": "snow_block",
+			"name": "Snow Block",
+			"hardness": 0.2,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"snowball",
+					4
+				]
+			]
+		},
+		{
+			"id": "oak_log",
+			"name": "Oak Log",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "birch_log",
+			"name": "Birch Log",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "spruce_log",
+			"name": "Spruce Log",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "jungle_log",
+			"name": "Jungle Log",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "oak_planks",
+			"name": "Oak Planks",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "birch_planks",
+			"name": "Birch Planks",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "spruce_planks",
+			"name": "Spruce Planks",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "jungle_planks",
+			"name": "Jungle Planks",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "oak_leaves",
+			"name": "Oak Leaves",
+			"hardness": 0.2,
+			"tool": "shears",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": []
+		},
+		{
+			"id": "coal_ore",
+			"name": "Coal Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"coal",
+					1
+				]
+			]
+		},
+		{
+			"id": "iron_ore",
+			"name": "Iron Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 2,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "gold_ore",
+			"name": "Gold Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 4,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "copper_ore",
+			"name": "Copper Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 2,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "redstone_ore",
+			"name": "Redstone Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 4,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"redstone",
+					5
+				]
+			]
+		},
+		{
+			"id": "lapis_ore",
+			"name": "Lapis Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 2,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"lapis_lazuli",
+					6
+				]
+			]
+		},
+		{
+			"id": "diamond_ore",
+			"name": "Diamond Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 4,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"diamond",
+					1
+				]
+			]
+		},
+		{
+			"id": "emerald_ore",
+			"name": "Emerald Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 4,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"emerald",
+					1
+				]
+			]
+		},
+		{
+			"id": "nether_quartz_ore",
+			"name": "Nether Quartz Ore",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"nether_quartz",
+					1
+				]
+			]
+		},
+		{
+			"id": "iron_block",
+			"name": "Block of Iron",
+			"hardness": 5.0,
+			"tool": "pickaxe",
+			"tier": 2,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "gold_block",
+			"name": "Block of Gold",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 4,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "copper_block",
+			"name": "Block of Copper",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 2,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "diamond_block",
+			"name": "Block of Diamond",
+			"hardness": 5.0,
+			"tool": "pickaxe",
+			"tier": 4,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "crafting_table",
+			"name": "Crafting Table",
+			"hardness": 2.5,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "toolbench",
+			"name": "Toolbench",
+			"hardness": 2.5,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "furnace",
+			"name": "Furnace",
+			"hardness": 3.5,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "chest",
+			"name": "Chest",
+			"hardness": 2.5,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "bookshelf",
+			"name": "Bookshelf",
+			"hardness": 1.5,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				[
+					"book",
+					3
+				]
+			]
+		},
+		{
+			"id": "jukebox",
+			"name": "Jukebox",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "pumpkin",
+			"name": "Pumpkin",
+			"hardness": 1.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "jack_o_lantern",
+			"name": "Jack o'Lantern",
+			"hardness": 1.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 15,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "hay_bale",
+			"name": "Hay Bale",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "glass",
+			"name": "Glass",
+			"hardness": 0.3,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": []
+		},
+		{
+			"id": "tnt",
+			"name": "TNT",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "bed",
+			"name": "Bed",
+			"hardness": 0.2,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "torch",
+			"name": "Torch",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 14,
+			"transparent": true,
+			"drops": []
+		},
+		{
+			"id": "piston",
+			"name": "Piston",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "sticky_piston",
+			"name": "Sticky Piston",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "dispenser",
+			"name": "Dispenser",
+			"hardness": 3.5,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "dropper",
+			"name": "Dropper",
+			"hardness": 3.5,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "hopper",
+			"name": "Hopper",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "command_block",
+			"name": "Command Block",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "cloud_wool",
+			"name": "Cloud Wool",
+			"hardness": 0.8,
+			"tool": "shears",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "heaven_portal",
+			"name": "Heaven Portal",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 11,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
+			"id": "nether_portal",
+			"name": "Nether Portal",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 11,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
+			"id": "end_portal",
+			"name": "End Portal",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 11,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
+			"id": "brick_block",
+			"name": "Bricks",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"brick_block"
+			]
+		},
+		{
+			"id": "brick_stairs",
+			"name": "Brick Stairs",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"brick_stairs"
+			]
+		},
+		{
+			"id": "flower_red_tulip",
+			"name": "Red Tulip",
+			"hardness": 0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": [
+				"flower_red_tulip"
+			]
+		},
+		{
+			"id": "flower_yellow_tulip",
+			"name": "Yellow Tulip",
+			"hardness": 0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": [
+				"flower_yellow_tulip"
+			]
+		},
+		{
+			"id": "flower_orange_tulip",
+			"name": "Orange Tulip",
+			"hardness": 0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": [
+				"flower_orange_tulip"
+			]
+		},
+		{
+			"id": "flower_red_rose",
+			"name": "Red Rose",
+			"hardness": 0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": [
+				"flower_red_rose"
+			]
+		},
+		{
+			"id": "fence_oak",
+			"name": "Oak Fence",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"fence_oak"
+			]
+		},
+		{
+			"id": "fence_gate_oak",
+			"name": "Oak Fence Gate",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"fence_gate_oak"
+			]
+		},
+		{
+			"id": "door_oak_open",
+			"name": "Oak Door (Open)",
+			"hardness": 3.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"door_oak"
+			]
+		},
+		{
+			"id": "trapdoor_oak_open",
+			"name": "Oak Trapdoor (Open)",
+			"hardness": 3.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"trapdoor_oak"
+			]
+		},
+		{
+			"id": "door_oak",
+			"name": "Oak Door",
+			"hardness": 3.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"drops": [
+				"door_oak"
+			]
+		},
+		{
+			"id": "trapdoor_oak",
+			"name": "Oak Trapdoor",
+			"hardness": 3.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"trapdoor_oak"
+			]
+		},
+		{
+			"id": "tnt",
+			"name": "TNT",
+			"hardness": 0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"tnt"
+			]
+		},
+		{
+			"id": "dispenser",
+			"name": "Dispenser",
+			"hardness": 3.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"dispenser"
+			]
+		},
+		{
+			"id": "quartz_block",
+			"name": "Quartz Block",
+			"hardness": 0.8,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"quartz_block"
+			]
+		},
+		{
+			"id": "quartz_stairs",
+			"name": "Quartz Stairs",
+			"hardness": 0.8,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"quartz_stairs"
+			]
+		},
+		{
+			"id": "anvil",
+			"name": "Anvil",
+			"hardness": 5.0,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"anvil"
+			]
+		},
+		{
+			"id": "lever",
+			"name": "Lever",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"lever"
+			]
+		},
+		{
+			"id": "lever_on",
+			"name": "Lever (On)",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"lever"
+			]
+		},
+		{
+			"id": "stone_button",
+			"name": "Stone Button",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"stone_button"
+			]
+		},
+		{
+			"id": "stone_button_on",
+			"name": "Stone Button (On)",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"stone_button"
+			]
+		},
+		{
+			"id": "pressure_plate",
+			"name": "Pressure Plate",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"pressure_plate"
+			]
+		},
+		{
+			"id": "pressure_plate_on",
+			"name": "Pressure Plate (On)",
+			"hardness": 0.5,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"pressure_plate"
+			]
+		},
+		{
+			"id": "daylight_sensor",
+			"name": "Daylight Sensor",
+			"hardness": 0.2,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"daylight_sensor"
+			]
+		},
+		{
+			"id": "redstone",
+			"name": "Redstone Dust",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"redstone"
+			]
+		},
+		{
+			"id": "daylight_sensor_on",
+			"name": "Daylight Sensor (On)",
+			"hardness": 0.2,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"daylight_sensor"
+			]
+		},
+		{
+			"id": "fence_gate_oak_open",
+			"name": "Oak Fence Gate (Open)",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"fence_gate_oak"
+			]
+		},
+		{
+			"id": "piston_head",
+			"name": "Piston Head",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "redstone_torch",
+			"name": "Redstone Torch",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 7,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"redstone_torch"
+			]
+		},
+		{
+			"id": "redstone_torch_on",
+			"name": "Redstone Torch",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 7,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"redstone_torch"
+			]
+		},
+		{
+			"id": "rail",
+			"name": "Rail",
+			"hardness": 0.7,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"rail"
+			]
+		},
+		{
+			"id": "repeater",
+			"name": "Redstone Repeater",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"repeater"
+			]
+		},
+		{
+			"id": "repeater_on",
+			"name": "Redstone Repeater",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"repeater"
+			]
+		},
+		{
+			"id": "comparator",
+			"name": "Redstone Comparator",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"comparator"
+			]
+		},
+		{
+			"id": "comparator_on",
+			"name": "Redstone Comparator",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"comparator"
+			]
+		},
+		{
+			"id": "powered_rail",
+			"name": "Powered Rail",
+			"hardness": 0.7,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"powered_rail"
+			]
+		},
+		{
+			"id": "detector_rail",
+			"name": "Detector Rail",
+			"hardness": 0.7,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"detector_rail"
+			]
+		}
+	]
+}

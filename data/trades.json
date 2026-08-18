@@ -1,0 +1,33 @@
+{
+  "_comment": "Balanced villager trades per profession. cost: [[item,count],...], reward: [item,count]. Emerald is the currency - no '1 emerald for 1 dirt' nonsense.",
+  "farmer": [
+	{"cost": [["wheat", 20]], "reward": ["emerald", 1]},
+	{"cost": [["carrot", 22]], "reward": ["emerald", 1]},
+	{"cost": [["emerald", 1]], "reward": ["bread", 6]},
+	{"cost": [["emerald", 1]], "reward": ["pumpkin_pie", 4]}
+  ],
+  "librarian": [
+	{"cost": [["paper", 24]], "reward": ["emerald", 1]},
+	{"cost": [["book", 1]], "reward": ["emerald", 1]},
+	{"cost": [["emerald", 5]], "reward": ["compass", 1]},
+	{"cost": [["emerald", 4]], "reward": ["clock", 1]}
+  ],
+  "blacksmith": [
+	{"cost": [["coal", 16]], "reward": ["emerald", 1]},
+	{"cost": [["iron_ingot", 4]], "reward": ["emerald", 1]},
+	{"cost": [["emerald", 7]], "reward": ["iron_chestplate", 1]},
+	{"cost": [["emerald", 5]], "reward": ["copper_chestplate", 1]},
+	{"cost": [["emerald", 10]], "reward": ["diamond_pickaxe", 1]}
+  ],
+  "butcher": [
+	{"cost": [["beef", 14]], "reward": ["emerald", 1]},
+	{"cost": [["chicken", 14]], "reward": ["emerald", 1]},
+	{"cost": [["emerald", 1]], "reward": ["cooked_beef", 4]}
+  ],
+  "cleric": [
+	{"cost": [["rotten_flesh", 32]], "reward": ["emerald", 1]},
+	{"cost": [["gold_ingot", 3]], "reward": ["emerald", 1]},
+	{"cost": [["emerald", 4]], "reward": ["ender_pearl", 1]},
+	{"cost": [["emerald", 3]], "reward": ["redstone", 4]}
+  ]
+}

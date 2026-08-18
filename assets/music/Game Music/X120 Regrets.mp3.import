@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://cbjunimvlsfcs"
+path="res://.godot/imported/X120 Regrets.mp3-7ccec7e43ebec74fc041e3be261a3d58.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/X120 Regrets.mp3"
+dest_files=["res://.godot/imported/X120 Regrets.mp3-7ccec7e43ebec74fc041e3be261a3d58.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

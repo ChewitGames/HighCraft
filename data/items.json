@@ -1,0 +1,521 @@
+{
+	"_comment": "Plain items + config the Registry expands into tools and armor.",
+	"materials": [
+		[
+			"coal",
+			"Coal"
+		],
+		[
+			"charcoal",
+			"Charcoal"
+		],
+		[
+			"iron_ingot",
+			"Iron Ingot"
+		],
+		[
+			"gold_ingot",
+			"Gold Ingot"
+		],
+		[
+			"copper_ingot",
+			"Copper Ingot"
+		],
+		[
+			"diamond",
+			"Diamond"
+		],
+		[
+			"emerald",
+			"Emerald"
+		],
+		[
+			"redstone",
+			"Redstone Dust"
+		],
+		[
+			"lapis_lazuli",
+			"Lapis Lazuli"
+		],
+		[
+			"nether_quartz",
+			"Nether Quartz"
+		],
+		[
+			"stick",
+			"Stick"
+		],
+		[
+			"string",
+			"String"
+		],
+		[
+			"leather",
+			"Leather"
+		],
+		[
+			"feather",
+			"Feather"
+		],
+		[
+			"bone",
+			"Bone"
+		],
+		[
+			"gunpowder",
+			"Gunpowder"
+		],
+		[
+			"ender_pearl",
+			"Ender Pearl"
+		],
+		[
+			"blaze_rod",
+			"Blaze Rod"
+		],
+		[
+			"blaze_powder",
+			"Blaze Powder"
+		],
+		[
+			"ghast_tear",
+			"Ghast Tear"
+		],
+		[
+			"magma_cream",
+			"Magma Cream"
+		],
+		[
+			"slimeball",
+			"Slimeball"
+		],
+		[
+			"clay_ball",
+			"Clay Ball"
+		],
+		[
+			"glowstone_dust",
+			"Glowstone Dust"
+		],
+		[
+			"snowball",
+			"Snowball"
+		],
+		[
+			"flint",
+			"Flint"
+		],
+		[
+			"wheat",
+			"Wheat"
+		],
+		[
+			"sugar",
+			"Sugar"
+		],
+		[
+			"egg",
+			"Egg"
+		],
+		[
+			"paper",
+			"Paper"
+		],
+		[
+			"book",
+			"Book"
+		],
+		[
+			"bone_meal",
+			"Bone Meal"
+		],
+		[
+			"fire_charge",
+			"Fire Charge"
+		],
+		[
+			"rose",
+			"Rose"
+		],
+		[
+			"firework_rocket",
+			"Firework Rocket"
+		],
+		[
+			"firework_star",
+			"Firework Star"
+		],
+		[
+			"banner",
+			"Banner"
+		],
+		[
+			"rotten_flesh",
+			"Rotten Flesh"
+		],
+		[
+			"spider_eye",
+			"Spider Eye"
+		],
+		[
+			"ink_sac",
+			"Ink Sac"
+		],
+		[
+			"gold_nugget",
+			"Gold Nugget"
+		],
+		[
+			"rabbit_hide",
+			"Rabbit Hide"
+		],
+		[
+			"shulker_shell",
+			"Shulker Shell"
+		],
+		[
+			"dragon_egg",
+			"Dragon Egg"
+		],
+		[
+			"nether_star",
+			"Nether Star"
+		]
+	],
+	"foods": [
+		[
+			"bread",
+			"Bread",
+			5,
+			6.0
+		],
+		[
+			"cooked_beef",
+			"Steak",
+			8,
+			12.8
+		],
+		[
+			"cooked_porkchop",
+			"Cooked Porkchop",
+			8,
+			12.8
+		],
+		[
+			"cooked_chicken",
+			"Cooked Chicken",
+			6,
+			7.2
+		],
+		[
+			"cooked_fish",
+			"Cooked Fish",
+			5,
+			6.0
+		],
+		[
+			"apple",
+			"Apple",
+			4,
+			2.4
+		],
+		[
+			"golden_apple",
+			"Golden Apple",
+			4,
+			9.6
+		],
+		[
+			"enchanted_golden_apple",
+			"Enchanted Golden Apple",
+			4,
+			9.6
+		],
+		[
+			"carrot",
+			"Carrot",
+			3,
+			3.6
+		],
+		[
+			"potato",
+			"Potato",
+			1,
+			0.6
+		],
+		[
+			"baked_potato",
+			"Baked Potato",
+			5,
+			6.0
+		],
+		[
+			"melon_slice",
+			"Melon Slice",
+			2,
+			1.2
+		],
+		[
+			"pumpkin_pie",
+			"Pumpkin Pie",
+			8,
+			4.8
+		],
+		[
+			"cake",
+			"Cake",
+			14,
+			2.8
+		],
+		[
+			"cookie",
+			"Cookie",
+			2,
+			0.4
+		],
+		[
+			"mushroom_stew",
+			"Mushroom Stew",
+			6,
+			7.2
+		],
+		[
+			"beef",
+			"Raw Beef",
+			3,
+			1.8
+		],
+		[
+			"porkchop",
+			"Raw Porkchop",
+			3,
+			1.8
+		],
+		[
+			"chicken",
+			"Raw Chicken",
+			2,
+			1.2
+		],
+		[
+			"fish",
+			"Raw Fish",
+			2,
+			1.2
+		],
+		[
+			"mutton",
+			"Raw Mutton",
+			2,
+			1.2
+		]
+	],
+	"misc": [
+		[
+			"flint_and_steel",
+			"Flint and Steel"
+		],
+		[
+			"shears",
+			"Shears"
+		],
+		[
+			"fishing_rod",
+			"Fishing Rod"
+		],
+		[
+			"bow",
+			"Bow"
+		],
+		[
+			"arrow",
+			"Arrow"
+		],
+		[
+			"bucket",
+			"Bucket"
+		],
+		[
+			"water_bucket",
+			"Water Bucket"
+		],
+		[
+			"lava_bucket",
+			"Lava Bucket"
+		],
+		[
+			"milk_bucket",
+			"Milk Bucket"
+		],
+		[
+			"saddle",
+			"Saddle"
+		],
+		[
+			"name_tag",
+			"Name Tag"
+		],
+		[
+			"lead",
+			"Lead"
+		],
+		[
+			"compass",
+			"Compass"
+		],
+		[
+			"clock",
+			"Clock"
+		],
+		[
+			"map",
+			"Map"
+		],
+		[
+			"elytra",
+			"Elytra"
+		],
+		[
+			"chunk_loader_map",
+			"Chunk Loader Map"
+		],
+		[
+			"boat",
+			"Boat"
+		],
+		[
+			"minecart",
+			"Minecart"
+		],
+		[
+			"repeater",
+			"Redstone Repeater"
+		],
+		[
+			"comparator",
+			"Redstone Comparator"
+		],
+		[
+			"powered_rail",
+			"Powered Rail"
+		],
+		[
+			"detector_rail",
+			"Detector Rail"
+		]
+	],
+	"tool_types": [
+		"pickaxe",
+		"axe",
+		"shovel",
+		"sword"
+	],
+	"tool_materials": [
+		"wood",
+		"stone",
+		"copper",
+		"iron",
+		"diamond"
+	],
+	"tier_stats": {
+		"wood": {
+			"tier": 1,
+			"durability": 59,
+			"damage": 2
+		},
+		"stone": {
+			"tier": 2,
+			"durability": 131,
+			"damage": 3
+		},
+		"copper": {
+			"tier": 3,
+			"durability": 190,
+			"damage": 4
+		},
+		"iron": {
+			"tier": 4,
+			"durability": 250,
+			"damage": 5
+		},
+		"diamond": {
+			"tier": 5,
+			"durability": 1561,
+			"damage": 7
+		}
+	},
+	"damage_bonus": {
+		"sword": 1,
+		"axe": 2,
+		"pickaxe": 0,
+		"shovel": 0
+	},
+	"armor_slots": [
+		"helmet",
+		"chestplate",
+		"leggings",
+		"boots"
+	],
+	"armor_materials": [
+		"leather",
+		"copper",
+		"stone",
+		"iron",
+		"diamond",
+		"gold",
+		"chainmail"
+	],
+	"armor_points": {
+		"leather": {
+			"helmet": 1,
+			"chestplate": 3,
+			"leggings": 2,
+			"boots": 1
+		},
+		"copper": {
+			"helmet": 2,
+			"chestplate": 4,
+			"leggings": 3,
+			"boots": 2
+		},
+		"stone": {
+			"helmet": 2,
+			"chestplate": 5,
+			"leggings": 4,
+			"boots": 2
+		},
+		"iron": {
+			"helmet": 2,
+			"chestplate": 6,
+			"leggings": 5,
+			"boots": 2
+		},
+		"diamond": {
+			"helmet": 3,
+			"chestplate": 8,
+			"leggings": 6,
+			"boots": 3
+		},
+		"gold": {
+			"helmet": 2,
+			"chestplate": 5,
+			"leggings": 3,
+			"boots": 1
+		},
+		"chainmail": {
+			"helmet": 2,
+			"chestplate": 5,
+			"leggings": 4,
+			"boots": 1
+		}
+	},
+	"armor_durability": {
+		"leather": 80,
+		"copper": 150,
+		"stone": 180,
+		"iron": 240,
+		"diamond": 400,
+		"gold": 112,
+		"chainmail": 240
+	}
+}

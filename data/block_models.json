@@ -1,0 +1,228 @@
+{
+	"_comment": "HighCraft Block Model Definitions v1.0\nDefines unique shapes for non-cube blocks.\nSupported types: cube (default), stairs, torch, door, trapdoor, redstone_wire, daylight_sensor, pressure_plate, button, fence, fence_gate, piston, chest, cross, anvil, bed.\nThe ChunkMesher will check Registry.block_models[block_id] and generate custom geometry instead of 6 full faces.",
+	"models": {
+		"torch": {
+			"type": "torch",
+			"texture": "torch",
+			"light_emission": 14,
+			"hitbox": [
+				0.4,
+				0.6,
+				0.4
+			],
+			"collision": false,
+			"notes": "Thin pole + cross flame on top. Placed on floor or wall."
+		},
+		"brick_stairs": {
+			"type": "stairs",
+			"texture": "brick_block",
+			"material": "stone",
+			"step_height": 0.5,
+			"notes": "Standard stair shape. Supports rotation via blockstate or metadata later."
+		},
+		"quartz_stairs": {
+			"type": "stairs",
+			"texture": "quartz_block",
+			"material": "stone",
+			"step_height": 0.5
+		},
+		"door_oak": {
+			"type": "door",
+			"texture": "oak_planks",
+			"width": 0.1875,
+			"height": 2.0,
+			"thick": 0.1,
+			"notes": "Two tall thin panels. 'door_oak_open' uses same model but rotated 90° + offset."
+		},
+		"door_oak_open": {
+			"type": "door",
+			"texture": "oak_planks",
+			"width": 0.1875,
+			"height": 2.0,
+			"thick": 0.1,
+			"open": true
+		},
+		"trapdoor_oak": {
+			"type": "trapdoor",
+			"texture": "oak_planks",
+			"thickness": 0.1875,
+			"notes": "Flat when closed, opens upward. 'trapdoor_oak_open' is rotated."
+		},
+		"trapdoor_oak_open": {
+			"type": "trapdoor",
+			"texture": "oak_planks",
+			"thickness": 0.1875,
+			"open": true
+		},
+		"redstone": {
+			"type": "redstone_wire",
+			"texture": "redstone",
+			"notes": "Cross or line shape on ground. Power level can tint texture later."
+		},
+		"daylight_sensor": {
+			"type": "daylight_sensor",
+			"texture": "daylight_sensor",
+			"notes": "Thin slab with sensor top."
+		},
+		"daylight_sensor_on": {
+			"type": "daylight_sensor",
+			"texture": "daylight_sensor",
+			"notes": "Active daylight sensor."
+		},
+		"flower_red_tulip": {
+			"type": "cross",
+			"texture": "flower_red_tulip"
+		},
+		"flower_yellow_tulip": {
+			"type": "cross",
+			"texture": "flower_yellow_tulip"
+		},
+		"flower_orange_tulip": {
+			"type": "cross",
+			"texture": "flower_orange_tulip"
+		},
+		"flower_red_rose": {
+			"type": "cross",
+			"texture": "flower_red_rose"
+		},
+		"anvil": {
+			"type": "anvil",
+			"texture": "anvil"
+		},
+		"bed": {
+			"type": "bed",
+			"texture": "bed"
+		},
+		"pressure_plate": {
+			"type": "pressure_plate",
+			"texture": "stone",
+			"thickness": 0.0625,
+			"inset": 0.0625,
+			"notes": "Dünne flache Platte knapp über dem Boden. '_on' Variante liegt 0.03 tiefer (eingedrückt)."
+		},
+		"pressure_plate_on": {
+			"type": "pressure_plate",
+			"texture": "stone",
+			"thickness": 0.0625,
+			"inset": 0.0625,
+			"pressed": true
+		},
+		"stone_button": {
+			"type": "button",
+			"texture": "stone",
+			"width": 0.375,
+			"height": 0.25,
+			"depth": 0.125,
+			"notes": "Kleiner Quader, an Wand oder Boden montiert je nach Placement-Face. '_on' ist 0.06 tiefer reingedrückt."
+		},
+		"stone_button_on": {
+			"type": "button",
+			"texture": "stone",
+			"width": 0.375,
+			"height": 0.25,
+			"depth": 0.125,
+			"pressed": true
+		},
+		"boat": {
+			"type": "boat",
+			"texture": "oak_planks",
+			"notes": "Nur als Entity relevant (Boat.gd baut eigenes Mesh) - Eintrag hier für Inventar-Icon/Platzierungs-Vorschau."
+		},
+		"chest": {
+			"type": "chest",
+			"texture": "chest",
+			"notes": "Slightly inset cube with lid seam."
+		},
+		"piston": {
+			"type": "piston",
+			"texture": "piston",
+			"notes": "Base + face plate. Extended state uses piston_head."
+		},
+		"sticky_piston": {
+			"type": "piston",
+			"texture": "sticky_piston",
+			"sticky": true
+		},
+		"piston_head": {
+			"type": "piston_head",
+			"texture": "piston",
+			"notes": "Extended piston arm + plate."
+		},
+		"fence_oak": {
+			"type": "fence",
+			"texture": "oak_planks",
+			"notes": "Center post + connections to neighboring fences."
+		},
+		"fence_gate_oak": {
+			"type": "fence_gate",
+			"texture": "oak_planks",
+			"open": false
+		},
+		"fence_gate_oak_open": {
+			"type": "fence_gate",
+			"texture": "oak_planks",
+			"open": true
+		},
+		"lever": {
+			"type": "lever",
+			"texture": "cobblestone",
+			"notes": "Small base + stick."
+		},
+		"lever_on": {
+			"type": "lever",
+			"texture": "cobblestone",
+			"on": true
+		},
+		"hopper": {
+			"type": "hopper",
+			"texture": "hopper",
+			"notes": "Funnel shape"
+		},
+		"dropper": {
+			"type": "dropper",
+			"texture": "dropper",
+			"notes": "Cube with front hole"
+		},
+		"dispenser": {
+			"type": "dispenser",
+			"texture": "dispenser",
+			"notes": "Cube with mouth"
+		},
+		"redstone_torch": {
+			"type": "torch",
+			"texture": "redstone_torch"
+		},
+		"redstone_torch_on": {
+			"type": "torch",
+			"texture": "redstone_torch"
+		},
+		"rail": {
+			"type": "rail",
+			"texture": "rail"
+		},
+		"repeater": {
+			"type": "repeater",
+			"texture": "repeater"
+		},
+		"repeater_on": {
+			"type": "repeater",
+			"texture": "repeater"
+		},
+		"comparator": {
+			"type": "comparator",
+			"texture": "comparator"
+		},
+		"comparator_on": {
+			"type": "comparator",
+			"texture": "comparator"
+		},
+		"powered_rail": {
+			"type": "rail",
+			"texture": "powered_rail"
+		},
+		"detector_rail": {
+			"type": "rail",
+			"texture": "detector_rail"
+		}
+	}
+}

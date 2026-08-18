@@ -1,0 +1,22 @@
+[gd_scene format=3 uid="uid://cy6wdbxoi1kn1"]
+
+[ext_resource type="Script" uid="uid://dy5a204jk30jj" path="res://scripts/Projectile.gd" id="1_umosx"]
+[ext_resource type="PackedScene" uid="uid://k6woywepftm3" path="res://assets/minecraft_arrow.glb" id="2_23jat"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_pse6a"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_3u1er"]
+
+[node name="Arrow" type="RigidBody3D" unique_id=2104466373]
+script = ExtResource("1_umosx")
+
+[node name="Sketchfab_Scene" parent="." unique_id=749638617 instance=ExtResource("2_23jat")]
+transform = Transform3D(-4.371139e-09, 0, 0.1, 0, 0.1, 0, -0.1, 0, -4.371139e-09, 0, 0, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=1353561344]
+shape = SubResource("BoxShape3D_pse6a")
+
+[node name="Area3D" type="Area3D" parent="." unique_id=938337910]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=689638388]
+shape = SubResource("BoxShape3D_3u1er")

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dsynx7yrswjej"
+path="res://.godot/imported/The Quiet Between Stars (1).mp3-73086f0ad87add51f26bd3a4444061c6.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/The Quiet Between Stars (1).mp3"
+dest_files=["res://.godot/imported/The Quiet Between Stars (1).mp3-73086f0ad87add51f26bd3a4444061c6.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

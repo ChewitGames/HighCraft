@@ -1,0 +1,15 @@
+[
+  { "result": "bread", "count": 1, "shape": ["WWW"], "ingredients": { "W": "wheat" } },
+  { "result": "cake", "count": 1, "shape": ["MMM", "SES", "WWW"], "ingredients": { "M": "milk_bucket", "S": "sugar", "E": "egg", "W": "wheat" } },
+  { "result": "pumpkin_pie", "count": 1, "shapeless": ["pumpkin", "sugar", "egg"] },
+  { "result": "cookie", "count": 8, "shape": ["WCW"], "ingredients": { "W": "wheat", "C": "coal" } },
+  { "result": "golden_apple", "count": 1, "shape": ["GGG", "GAG", "GGG"], "ingredients": { "G": "gold_ingot", "A": "apple" } },
+  { "result": "paper", "count": 3, "shape": ["SSS"], "ingredients": { "S": "sugar" } },
+  { "result": "book", "count": 1, "shapeless": ["paper", "paper", "paper", "leather"] },
+  { "result": "bone_meal", "count": 3, "shapeless": ["bone"] },
+  { "result": "tnt", "count": 1, "shape": ["GSG", "SGS", "GSG"], "ingredients": { "G": "gunpowder", "S": "sand" } },
+  { "result": "firework_rocket", "count": 3, "shapeless": ["gunpowder", "paper"] },
+  { "result": "firework_star", "count": 1, "shapeless": ["gunpowder", "glowstone_dust"] },
+  { "result": "name_tag", "count": 1, "shapeless": ["paper", "string"] },
+  { "result": "saddle", "count": 1, "shape": ["LLL", "I I"], "ingredients": { "L": "leather", "I": "iron_ingot" } }
+]

@@ -1,0 +1,38 @@
+[
+  {
+	"id": "potion_speed",
+	"name": "Potion of Swiftness",
+	"base": "awkward_potion",
+	"ingredient": "sugar",
+	"effects": [
+	  { "type": "speed", "duration": 180, "amplifier": 0 }
+	]
+  },
+  {
+	"id": "potion_strength",
+	"name": "Potion of Strength",
+	"base": "awkward_potion",
+	"ingredient": "blaze_powder",
+	"effects": [
+	  { "type": "strength", "duration": 180, "amplifier": 0 }
+	]
+  },
+  {
+	"id": "potion_regeneration",
+	"name": "Potion of Regeneration",
+	"base": "awkward_potion",
+	"ingredient": "ghast_tear",
+	"effects": [
+	  { "type": "regeneration", "duration": 45, "amplifier": 0 }
+	]
+  },
+  {
+	"id": "potion_fire_resistance",
+	"name": "Potion of Fire Resistance",
+	"base": "awkward_potion",
+	"ingredient": "magma_cream",
+	"effects": [
+	  { "type": "fire_resistance", "duration": 180, "amplifier": 0 }
+	]
+  }
+]

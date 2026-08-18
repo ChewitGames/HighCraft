@@ -1,0 +1,34 @@
+[
+  { "result": "wood_pickaxe", "count": 1, "shape": ["MMM", " S ", " S "], "ingredients": { "M": "oak_planks", "S": "stick" } },
+  { "result": "stone_pickaxe", "count": 1, "shape": ["MMM", " S ", " S "], "ingredients": { "M": "cobblestone", "S": "stick" } },
+  { "result": "copper_pickaxe", "count": 1, "shape": ["MMM", " S ", " S "], "ingredients": { "M": "copper_ingot", "S": "stick" } },
+  { "result": "iron_pickaxe", "count": 1, "shape": ["MMM", " S ", " S "], "ingredients": { "M": "iron_ingot", "S": "stick" } },
+  { "result": "diamond_pickaxe", "count": 1, "shape": ["MMM", " S ", " S "], "ingredients": { "M": "diamond", "S": "stick" } },
+
+  { "result": "wood_axe", "count": 1, "shape": ["MM", "MS", " S"], "ingredients": { "M": "oak_planks", "S": "stick" } },
+  { "result": "stone_axe", "count": 1, "shape": ["MM", "MS", " S"], "ingredients": { "M": "cobblestone", "S": "stick" } },
+  { "result": "copper_axe", "count": 1, "shape": ["MM", "MS", " S"], "ingredients": { "M": "copper_ingot", "S": "stick" } },
+  { "result": "iron_axe", "count": 1, "shape": ["MM", "MS", " S"], "ingredients": { "M": "iron_ingot", "S": "stick" } },
+  { "result": "diamond_axe", "count": 1, "shape": ["MM", "MS", " S"], "ingredients": { "M": "diamond", "S": "stick" } },
+
+  { "result": "wood_shovel", "count": 1, "shape": ["M", "S", "S"], "ingredients": { "M": "oak_planks", "S": "stick" } },
+  { "result": "stone_shovel", "count": 1, "shape": ["M", "S", "S"], "ingredients": { "M": "cobblestone", "S": "stick" } },
+  { "result": "copper_shovel", "count": 1, "shape": ["M", "S", "S"], "ingredients": { "M": "copper_ingot", "S": "stick" } },
+  { "result": "iron_shovel", "count": 1, "shape": ["M", "S", "S"], "ingredients": { "M": "iron_ingot", "S": "stick" } },
+  { "result": "diamond_shovel", "count": 1, "shape": ["M", "S", "S"], "ingredients": { "M": "diamond", "S": "stick" } },
+
+  { "result": "wood_sword", "count": 1, "shape": ["M", "M", "S"], "ingredients": { "M": "oak_planks", "S": "stick" } },
+  { "result": "stone_sword", "count": 1, "shape": ["M", "M", "S"], "ingredients": { "M": "cobblestone", "S": "stick" } },
+  { "result": "copper_sword", "count": 1, "shape": ["M", "M", "S"], "ingredients": { "M": "copper_ingot", "S": "stick" } },
+  { "result": "iron_sword", "count": 1, "shape": ["M", "M", "S"], "ingredients": { "M": "iron_ingot", "S": "stick" } },
+  { "result": "diamond_sword", "count": 1, "shape": ["M", "M", "S"], "ingredients": { "M": "diamond", "S": "stick" } },
+
+  { "result": "bow", "count": 1, "shape": [" ST", "S T", " ST"], "ingredients": { "S": "stick", "T": "string" } },
+  { "result": "arrow", "count": 4, "shape": ["F", "S", "E"], "ingredients": { "F": "flint", "S": "stick", "E": "feather" } },
+  { "result": "flint_and_steel", "count": 1, "shape": ["I ", " F"], "ingredients": { "I": "iron_ingot", "F": "flint" } },
+  { "result": "shears", "count": 1, "shape": [" I", "I "], "ingredients": { "I": "iron_ingot" } },
+  { "result": "fishing_rod", "count": 1, "shape": ["  S", " ST", "S T"], "ingredients": { "S": "stick", "T": "string" } },
+  { "result": "bucket", "count": 1, "shape": ["I I", " I "], "ingredients": { "I": "iron_ingot" } },
+  { "result": "compass", "count": 1, "shape": [" I ", "IRI", " I "], "ingredients": { "I": "iron_ingot", "R": "redstone" } },
+  { "result": "clock", "count": 1, "shape": [" G ", "GRG", " G "], "ingredients": { "G": "gold_ingot", "R": "redstone" } }
+]

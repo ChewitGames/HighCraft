@@ -1,0 +1,21 @@
+[gd_scene format=3 uid="uid://defy6bba5auy0"]
+
+[ext_resource type="Script" uid="uid://ckfw5fgo617my" path="res://scripts/entities/item_entity.gd" id="1_b1thk"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_b1thk"]
+size = Vector3(0.6, 0.6, 0.6)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_ms5fu"]
+
+[node name="ItemEntity" type="Node3D" unique_id=265230652]
+script = ExtResource("1_b1thk")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=113705651]
+shape = SubResource("BoxShape3D_b1thk")
+
+[node name="Area3D" type="Area3D" parent="." unique_id=1083419321]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Area3D" unique_id=1990202497]
+shape = SubResource("BoxShape3D_ms5fu")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=453273224]

@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://b8h53swrjtwl4"
+path="res://.godot/imported/X120 HIGHCRAFT.mp3-e7b40c5e6a212b3070c4d351c864759a.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/X120 HIGHCRAFT.mp3"
+dest_files=["res://.godot/imported/X120 HIGHCRAFT.mp3-e7b40c5e6a212b3070c4d351c864759a.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

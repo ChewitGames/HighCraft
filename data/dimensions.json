@@ -1,0 +1,9 @@
+{
+  "_comment": "The four dimensions. The End uses a custom (non-lonely-purple) skybox; Heaven is a wool-cloud world entered via a glowstone portal lit with water.",
+  "dimensions": [
+	{"id":"overworld","name":"Overworld","skybox":"sky_day","music":"overworld","sky_light":true,"ambient":0.0,"surface":"grass_block","ground":["stone","dirt"],"portal":"obsidian","structures":["village","desert_temple","jungle_temple","stronghold","mineshaft","dungeon"]},
+	{"id":"hell","name":"Hell","skybox":"sky_nether","music":"hell","sky_light":false,"ambient":0.1,"surface":"netherrack","ground":["netherrack","soul_sand"],"portal":"obsidian","structures":["nether_fortress"]},
+	{"id":"the_end","name":"The End","skybox":"sky_end_custom","music":"end","sky_light":false,"ambient":0.15,"surface":"end_stone","ground":["end_stone"],"portal":"end_portal","structures":["end_city","end_ship"]},
+	{"id":"heaven","name":"Heaven","skybox":"sky_heaven","music":"heaven","sky_light":true,"ambient":0.0,"surface":"cloud_wool","ground":["cloud_wool"],"portal":"heaven_portal","structures":["village","cloud_temple"]}
+  ]
+}

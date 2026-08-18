@@ -1,0 +1,10 @@
+# Simple Arrow Scene Structure (create this manually in Godot)
+
+# Root: RigidBody3D or Node3D
+# - MeshInstance3D (Arrow model or simple cylinder)
+# - CollisionShape3D (Capsule or Box)
+# - Area3D (for hit detection)
+#   - CollisionShape3D
+
+# Attach script: Projectile.gd (or Arrow.gd)
+# In _ready() or setup(), apply impulse or set velocity.

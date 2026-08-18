@@ -1,0 +1,27 @@
+HighCraft Avatar Creator – How to use
+=====================================
+
+1. Copy the two scripts into your project:
+   - res://scripts/avatar_editor.gd
+   - res://scripts/avatar_loader.gd
+
+2. In the Main Menu (main_menu.gd) add a button that opens the editor:
+
+   var editor = preload("res://scripts/avatar_editor.gd").new()
+   add_child(editor)
+   editor.skin_saved.connect(func(data):
+	   # optional: store the name for later
+	   print("Skin saved: ", data["name"])
+   )
+
+3. In player.gd – replace the old _build_player_model() with:
+
+   func _build_player_model() -> void:
+	   var skin = AvatarLoader.load_skin("afro_steve")  # or the name the player chose
+	   AvatarLoader.apply_to_player(self, skin)
+
+4. Skins are saved automatically to:
+   user://skins/<name>.json
+
+5. You can later add a "Select Skin" list that shows all files in user://skins/
+```

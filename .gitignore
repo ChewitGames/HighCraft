@@ -1,0 +1,25 @@
+# Godot 4
+.godot/
+.import/
+export.cfg
+*.translation
+
+# Mono/C#
+.mono/
+data_*/
+mono_crash.*.json
+
+# Exported builds
+build/
+exports/
+*.exe
+*.pck
+*.zip
+
+# Generated assets (textures are generated at runtime; user-provided otherwise)
+assets/textures/generated/
+
+# User music (large / personal)
+assets/music/**/*.mp3
+assets/music/**/*.ogg
+assets/music/**/*.wav

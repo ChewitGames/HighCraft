@@ -1,0 +1,51 @@
+[
+  {
+	"id": "sharpness",
+	"name": "Sharpness",
+	"max_level": 5,
+	"category": "weapon",
+	"effects": {
+	  "damage_bonus_per_level": 1.25
+	}
+  },
+  {
+	"id": "protection",
+	"name": "Protection",
+	"max_level": 4,
+	"category": "armor",
+	"effects": {
+	  "damage_reduction_percent_per_level": 4
+	}
+  },
+  {
+	"id": "efficiency",
+	"name": "Efficiency",
+	"max_level": 5,
+	"category": "tool",
+	"effects": {
+	  "mining_speed_multiplier_per_level": 0.3
+	}
+  },
+  {
+	"id": "unbreaking",
+	"name": "Unbreaking",
+	"max_level": 3,
+	"category": "universal",
+	"effects": {
+	  "durability_multiplier": {
+		"level_1": 2,
+		"level_2": 3,
+		"level_3": 4
+	  }
+	}
+  },
+  {
+	"id": "power",
+	"name": "Power",
+	"max_level": 5,
+	"category": "bow",
+	"effects": {
+	  "arrow_damage_bonus_per_level": 1.5
+	}
+  }
+]

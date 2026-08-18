@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dk8ie4g6cpgch"
+path="res://.godot/imported/X120 Nights.mp3-1de98d3b8da57c4149557016f6cbd6e4.mp3str"
+
+[deps]
+
+source_file="res://assets/music/Game Music/X120 Nights.mp3"
+dest_files=["res://.godot/imported/X120 Nights.mp3-1de98d3b8da57c4149557016f6cbd6e4.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

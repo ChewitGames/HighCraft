@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://du13eboq32mmy"]
+
+[ext_resource type="Script" uid="uid://cqtdpvj7oo7m5" path="res://scripts/TNT_Entity.gd" id="1_3ysw4"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_pse6a"]
+
+[node name="TntEntity" type="Node3D" unique_id=2134081506]
+script = ExtResource("1_3ysw4")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1683475072]
+mesh = SubResource("BoxMesh_pse6a")
