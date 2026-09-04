@@ -1,119 +1,133 @@
-
-
 # **HighCraft – Higher Than Ever**
 
-HighCraft ist ein chaotisches voxel‑Sandbox‑Game voller Humor, Mobs, Crafting, Survival, Dimensionen, Multiplayer und Meme‑Energie.  
-Baue, kämpfe, erkunde und überlebe in einer Welt, die sich mit jedem Update weiterentwickelt.
+HighCraft is a chaotic voxel sandbox game full of humor, mobs, crafting, survival, dimensions, multiplayer, and meme energy.
 
-**Trailer:**  
+Build, fight, explore, and survive in a world that evolves with every update.
+
+
+HighCraft – Higher Than Ever **Trailer:**
+
 [https://www.youtube.com/watch?v=BEYQvwlF-Nc](https://www.youtube.com/watch?v=BEYQvwlF-Nc)
 
 ---
 
 ## **Features**
 
-- Voxel‑Sandbox‑Gameplay  
-- Crafting & Survival  
-- 4 Dimensionen voller Chaos  
-- 37+ Mobs  
-- Bossfights  
-- Humor & Meme‑Energie  
-- Afro Steve als ikonischer Charakter  
-- Open‑World Exploration  
-- **Voller Controller‑Support** (Menüs, Gameplay, Virtual Keyboard)   
-- **Multiplayer (Host & Join via Room Code)**   
-- **Lokaler Splitscreen für 2–4 Spieler**  
-- **Cosmetics & Skins** (Avatar Creator, Outfits, Body Types, Painting Editor)   
-- Free‑to‑Play (No Payments)
+- Voxel Sandbox Gameplay
+- Crafting & Survival
+- 4 Dimensions of Mayhem
+- 37+ Mobs
+- Boss Fights
+- Humor & Meme Energy
+- Afro Steve as an Iconic Character
+- Open-World Exploration
+- **Full Controller Support** (Menues, Gameplay, Virtual Keyboard)
+- **Multiplayer (Host & Join via Room Code)**
+- **Local Splitscreen for 2-4 Players**
+- **Cosmetics & Skins** (Avatar Creator, Outfits, Body Types, Painting Editor)
+
+- Free-to-Play (No Payments)
 
 ---
 
 ## **Installation**
 
-1. Lade die aktuelle Version über itch.io herunter:  
-   [https://chewitgames-tm.itch.io/highcraft](https://chewitgames-tm.itch.io/highcraft)  
-2. Entpacke die ZIP‑Datei.  
-3. Starte die ausführbare Datei.  
-4. Viel Spaß im Chaos.
+1. Download the latest version from itch.io:
+
+[https://chewitgames-tm.itch.io/highcraft](https://chewitgames-tm.itch.io/highcraft)
+
+2. Extract the ZIP file.
+
+3. Run the executable file.
+
+4. Enjoy the mayhem!
+
 
 ---
 
 ## **Controls**
 
 ### **Keyboard & Mouse**
-- Bewegung: WASD  
-- Springen: Space  
-- Interagieren: E  
-- Inventar: I  
-- Bauen / Abbauen: Linke / Rechte Maustaste  
-- Menü: ESC  
+- Movement: WASD
+- Jump: Spacebar
+- Interact: E
+- Inventory: I
+- Build / Mine: Left / Right Mouse Button
+- Menu: ESC
 
 ### **Controller**
-- Bewegung: Left Stick  
-- Kamera: Right Stick  
-- Springen: A / Cross  
-- Interagieren: X / Square  
-- Inventar: Y / Triangle  
-- Bauen / Abbauen: RT / R2  
-- Virtuelle Tastatur erscheint automatisch  
-- Menü: Start / Options  
+- Movement: Left Stick
+- Camera: Right Stick
+- Jump: A / Crossbar
+- Interact: X / Square
+- Inventory: Y / Triangle
+- Build / Mine: RT / R2
+- Virtual keyboard appears automatically
+- Menu: Start / Options
 
 ---
 
 ## **Multiplayer**
 
-- Host mit Room Code  
-- Join via Room Code  
-- Block‑Sync zwischen Spielern  
-- Lokaler Splitscreen parallel nutzbar  
-- Skins werden online synchronisiert   
+- Host with Room Code
+- Join via Room Code
+- Block Sync between players
+- Local split-screen can be used simultaneously
+- Skins are synchronized online
 
 ---
 
 ## **Cosmetics & Skins**
 
-- Avatar Creator  
-- Körperformen (Thin, Average, Fat)  
-- Altersstufen (Liddle, Young, Adult, Old)  
-- Outfits, Capes, Hoods, Hats  
-- Haarstile, Augen, Mundformen  
-- Farbwahl für alle Elemente  
-- Controller‑kompatibler Pixel‑Editor  
-- Skins pro Spieler separat gespeichert  
-- Online‑Skins werden übertragen   
+- Avatar Creator
+- Body Types (Thin, Average, Fat)
+- Age Categories (Liddle, Young, Adult, Old)
+
+- Outfits, Capes, Hoods, Hats
+
+- Hairstyles, Eyes, Mouth Shapes
+
+- Color Selection for All Elements
+
+- Controller-Compatible Pixel Editor
+
+- Skins Saved Separately per Player
+
+- Online Skins Are Transferred
 
 ---
 
 ## **Roadmap**
 
-- Mehr Dimensionen  
-- Mehr Mobs  
-- Mehr Items  
-- Mehr Bossfights  
-- Mobile Version (später)  
-- Steam‑Release (zukünftig)  
-- Community‑Events  
-- Meme‑Updates  
+- More Dimensions
+- More Mobs
+- More Items
+- More Boss Fights
+- Mobile Version (Later)
+- Steam Release (Future)
+- Community Events
+- Meme Updates
 
 ---
 
 ## **Changelog**
 
-Alle Patch Notes findest du auf itch.io:  
+All patch notes can be found at itch.io:
+
 [https://chewitgames-tm.itch.io/highcraft](https://chewitgames-tm.itch.io/highcraft)
 
 ---
 
 ## **License**
 
-HighCraft ist ein Free‑to‑Play‑Projekt von **ChewitGames™**.  
-Alle Rechte vorbehalten.
+HighCraft is a Free-to-play project by **ChewitGames™**.
+
+All rights reserved.
 
 ---
 
 ## **Credits**
 
-**Developer:** Adrian Michael Ruf (ChewitGames™)  
-**Engine:** Godot 4.7  
-**Special Thanks:** Community, Freunde, Tester
-
+**Developer:** Adrian Michael Ruf (ChewitGames™)
+**Engine:** Godot 4.7
+**Special Thanks:** Community, Friends, Testers
