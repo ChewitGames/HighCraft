@@ -70,4 +70,7 @@ static func _t_max(o: float, cell: int, step: int, d: float) -> float:
 
 
 static func _is_solid(world, x: int, y: int, z: int) -> bool:
-	return not NON_SOLID.has(world.get_block(x, y, z))
+	# Selection runs every frame for every local player. It must never generate
+	# terrain synchronously merely because the crosshair reaches an unloaded edge.
+	var block = world.get_block_no_gen(x, y, z) if world.has_method("get_block_no_gen") else world.get_block(x, y, z)
+	return not NON_SOLID.has(block)

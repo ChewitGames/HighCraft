@@ -80,6 +80,14 @@ func _generate_hell(chunk) -> void:
 			elif rng.randf() < 0.08:
 				chunk.set_local(x, h, z, "soul_sand")
 			chunk.set_local(x, 120, z, "bedrock")
+			# Lava sea in the lower caverns
+			for y in range(24, 32):
+				if str(chunk.get_local(x, y, z)) == "air":
+					chunk.set_local(x, y, z, "lava")
+			if h < 32:
+				chunk.set_local(x, 31, z, "lava")
+	if structures_enabled:
+		Structures.maybe_build_nether(chunk, rng)
 
 
 func _generate_end(chunk) -> void:
@@ -99,17 +107,25 @@ func _generate_end(chunk) -> void:
 					chunk.set_local(x, y, z, "end_stone")
 	if chunk.cx == 0 and chunk.cz == 0:
 		Structures.build_end_spike(chunk)
+	var erng = RandomNumberGenerator.new()
+	erng.seed = hash(Vector3i(seed_val, chunk.cx, chunk.cz))
+	if structures_enabled:
+		Structures.maybe_build_end(chunk, erng)
 
 
 func _generate_heaven(chunk) -> void:
 	var base_x = chunk.cx * CHUNK_SIZE
 	var base_z = chunk.cz * CHUNK_SIZE
+	var hrng = RandomNumberGenerator.new()
+	hrng.seed = hash(Vector3i(seed_val, chunk.cx, chunk.cz))
 	for x in range(CHUNK_SIZE):
 		for z in range(CHUNK_SIZE):
 			var n = _noise2.get_noise_2d(base_x + x, base_z + z)
 			if n > 0.12:
 				for y in range(68, 72):
 					chunk.set_local(x, y, z, "cloud_wool")
+	if structures_enabled:
+		Structures.maybe_build_heaven(chunk, hrng)
 
 
 func _generate_flat(chunk) -> void:

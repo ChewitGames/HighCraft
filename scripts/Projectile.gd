@@ -46,4 +46,6 @@ func _physics_process(delta: float) -> void:
 		var collider = hit.get("collider")
 		if collider and collider.has_method("take_hit"):
 			collider.take_hit(damage)
+			if collider.has_method("apply_knockback"):
+				collider.apply_knockback(global_position, 3.2)
 			queue_free()

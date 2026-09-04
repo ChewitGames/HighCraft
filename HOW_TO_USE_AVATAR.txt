@@ -24,4 +24,13 @@ HighCraft Avatar Creator – How to use
    user://skins/<name>.json
 
 5. You can later add a "Select Skin" list that shows all files in user://skins/
+
+Expanded creator controls
+-------------------------
+- Every gender can use every hair, outfit, cape, hood, cap and glasses style.
+- Male bodies additionally render the selected beard style.
+- Body profiles: Male/Female, Liddle/Young/Adult/Old and Thin/Average/Fat.
+- All option lists and all Hue/Saturation/Brightness color sliders support controllers.
+- Pixel editor: left stick/D-Pad moves, A paints, X resets, B finishes, Y opens
+  the paint-color sliders, and the right stick rotates the 3D preview.
 ```

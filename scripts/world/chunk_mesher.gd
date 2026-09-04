@@ -34,9 +34,10 @@ var _cache_ready: bool = false
 var _plant_ids: Dictionary = {}
 var _water_shader: Shader
 var _plant_wind_shader: Shader
+var _two_sided_shader: Shader
 
 
-func build(world, chunk) -> Dictionary:
+func build(world, chunk, defer_mesh_creation: bool = false) -> Dictionary:
 	_plant_ids = {}
 	var solid_groups: Dictionary = {}
 	var liquid_groups: Dictionary = {}
@@ -55,8 +56,11 @@ func build(world, chunk) -> Dictionary:
 		var model = Registry.get_block_model(id)
 		var is_liquid = LIQUIDS.has(id)
 
-		if model.has("type"):
-			match model["type"]:
+		var model_type := str(model.get("type", ""))
+		# "cube" or empty = full block → normal face loop (do NOT continue early)
+		if model_type != "" and model_type != "cube":
+			var handled := true
+			match model_type:
 				"stairs":
 					_add_stairs(solid_groups, lx, ly, lz, id)
 				"torch":
@@ -74,13 +78,13 @@ func build(world, chunk) -> Dictionary:
 				"button":
 					_add_button(solid_groups, lx, ly, lz, id)
 				"redstone_wire":
-					_add_redstone_wire(solid_groups, lx, ly, lz, id)
+					_add_redstone_wire(solid_groups, lx, ly, lz, id, world, wx, wz)
 				"daylight_sensor":
 					_add_daylight_sensor(solid_groups, lx, ly, lz, id)
 				"chest":
 					_add_chest(solid_groups, lx, ly, lz, id)
 				"piston", "piston_head":
-					_add_piston(solid_groups, lx, ly, lz, id)
+					_add_piston(solid_groups, lx, ly, lz, id, world, wx, wz)
 				"fence":
 					_add_fence(solid_groups, lx, ly, lz, id)
 				"fence_gate":
@@ -92,16 +96,23 @@ func build(world, chunk) -> Dictionary:
 				"dropper", "dispenser":
 					_add_dropper_like(solid_groups, lx, ly, lz, id)
 				"rail":
-					_add_rail(solid_groups, lx, ly, lz, id)
+					_add_rail(solid_groups, lx, ly, lz, id, world, wx, wz)
 				"repeater", "comparator":
 					_add_repeater_like(solid_groups, lx, ly, lz, id)
+				"enchanting_table":
+					_add_enchanting_table(solid_groups, lx, ly, lz, id)
+				"fire":
+					_add_fire(solid_groups, lx, ly, lz, id)
+				"portal":
+					_add_portal(solid_groups, lx, ly, lz, id, world, wx, wz)
+				"skull":
+					_add_torch(solid_groups, lx, ly, lz, id)  # small block stand-in
 				_:
-					pass
-
-			# Wichtig: Unique-Blöcke sollen trotzdem Collider bekommen
-			if not is_liquid and Registry.is_solid(id):
-				collider_cells[Vector3i(lx, ly, lz)] = true
-			continue
+					handled = false
+			if handled:
+				if not is_liquid and Registry.is_solid(id) and model_type != "portal":
+					collider_cells[Vector3i(lx, ly, lz)] = true
+				continue
 
 		# === Normaler Cube-Code (nur wenn kein spezielles Model) ===
 		for f in FACES:
@@ -155,10 +166,28 @@ func build(world, chunk) -> Dictionary:
 			if not is_liquid and Registry.is_solid(id):
 				collider_cells[Vector3i(lx, ly, lz)] = true
 
+	if defer_mesh_creation:
+		# Worker threads may build PackedArrays, but must not call ArrayMesh /
+		# RenderingServer APIs. GPU resource creation is materialized later on main.
+		return {
+			"solid_groups": solid_groups,
+			"liquid_groups": liquid_groups,
+			"collider_cells": collider_cells.keys()
+		}
 	return {
 		"collide": _to_mesh(solid_groups),
 		"liquid": _to_mesh(liquid_groups),
 		"collider_cells": collider_cells.keys()
+	}
+
+
+func materialize(data: Dictionary) -> Dictionary:
+	# Must be called on the main thread.
+	return {
+		"collide": _to_mesh(data.get("solid_groups", {})),
+		"liquid": _to_mesh(data.get("liquid_groups", {})),
+		"collider_boxes": data.get("collider_boxes", []),
+		"collider_cells": data.get("collider_cells", [])
 	}
 	
 	
@@ -424,11 +453,51 @@ func _ensure_group(groups: Dictionary, id: String) -> Dictionary:
 	return groups[id]
 
 
-func _add_redstone_wire(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
-	var b = _ensure_group(groups, id)
-	# Flat cross on the ground — thicker so it's visible
-	_add_box(b, lx, ly, lz, 0.15, 0.85, 0.4, 0.6, 0.0, 0.08)
-	_add_box(b, lx, ly, lz, 0.4, 0.6, 0.15, 0.85, 0.0, 0.08)
+func _is_rs_connect(world, x: int, y: int, z: int) -> bool:
+	if world == null:
+		return false
+	var id = str(world.get_block_no_gen(x, y, z) if world.has_method("get_block_no_gen") else world.get_block(x, y, z))
+	return id in ["redstone", "redstone_torch", "redstone_torch_on", "lever", "lever_on",
+		"stone_button", "stone_button_on", "repeater", "repeater_on", "comparator", "comparator_on",
+		"piston", "sticky_piston", "dispenser", "dropper", "hopper", "command_block"]
+
+
+func _add_redstone_wire(groups: Dictionary, lx: int, ly: int, lz: int, id: String, world = null, wx: int = 0, wz: int = 0) -> void:
+	var power = 0
+	power = int(Redstone.get_strength(Vector3i(wx, ly, wz)))
+	# Also check game map via group name encoding
+	var gid = id if power <= 0 else "%s#%d" % [id, power]
+	var b = _ensure_group(groups, gid)
+	var gy = ly  # local y
+	var n = _is_rs_connect(world, wx, gy, wz - 1)
+	var s = _is_rs_connect(world, wx, gy, wz + 1)
+	var w = _is_rs_connect(world, wx - 1, gy, wz)
+	var e = _is_rs_connect(world, wx + 1, gy, wz)
+	# Center dot always
+	_add_box(b, lx, ly, lz, 0.4, 0.6, 0.4, 0.6, 0.0, 0.08)
+	# Arms only toward connections — looks like a cable, not a permanent cross
+	if n or (not n and not s and not w and not e):
+		_add_box(b, lx, ly, lz, 0.4, 0.6, 0.0, 0.5, 0.0, 0.08)
+	if s or (not n and not s and not w and not e):
+		_add_box(b, lx, ly, lz, 0.4, 0.6, 0.5, 1.0, 0.0, 0.08)
+	if w or (not n and not s and not w and not e):
+		_add_box(b, lx, ly, lz, 0.0, 0.5, 0.4, 0.6, 0.0, 0.08)
+	if e or (not n and not s and not w and not e):
+		_add_box(b, lx, ly, lz, 0.5, 1.0, 0.4, 0.6, 0.0, 0.08)
+	# Climb walls: if solid beside and wire above that side
+	for side in [{"dx":1,"dz":0,"x0":0.85,"x1":1.0,"z0":0.4,"z1":0.6},
+			{"dx":-1,"dz":0,"x0":0.0,"x1":0.15,"z0":0.4,"z1":0.6},
+			{"dx":0,"dz":1,"x0":0.4,"x1":0.6,"z0":0.85,"z1":1.0},
+			{"dx":0,"dz":-1,"x0":0.4,"x1":0.6,"z0":0.0,"z1":0.15}]:
+		var sx = wx + int(side["dx"])
+		var sz = wz + int(side["dz"])
+		if world == null:
+			continue
+		var side_id = str(world.get_block_no_gen(sx, gy, sz) if world.has_method("get_block_no_gen") else "")
+		var up_id = str(world.get_block_no_gen(sx, gy + 1, sz) if world.has_method("get_block_no_gen") else "")
+		if side_id != "air" and side_id != "" and Registry.is_opaque(side_id) and up_id == "redstone":
+			# vertical strip on wall
+			_add_box(b, lx, ly, lz, side["x0"], side["x1"], side["z0"], side["z1"], 0.0, 1.0)
 
 
 func _add_daylight_sensor(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
@@ -443,15 +512,51 @@ func _add_chest(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> vo
 	_add_box(b, lx, ly, lz, 0.0, 1.0, 0.35, 0.65, 0.875, 1.0)
 
 
-func _add_piston(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
+func _add_piston(groups: Dictionary, lx: int, ly: int, lz: int, id: String,
+		world = null, wx: int = 0, wz: int = 0) -> void:
 	var b = _ensure_group(groups, id)
 	if id == "piston_head":
-		_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 1.0, 0.75, 1.0)
-		_add_box(b, lx, ly, lz, 0.35, 0.65, 0.35, 0.65, 0.0, 0.75)
+		var dir := _piston_head_direction(world, Vector3i(wx, ly, wz))
+		match dir:
+			Vector3i(1, 0, 0): # base left, plate faces +X
+				_add_box(b, lx, ly, lz, 0.75, 1.0, 0.0, 1.0, 0.0, 1.0)
+				_add_box(b, lx, ly, lz, 0.0, 0.75, 0.35, 0.65, 0.35, 0.65)
+			Vector3i(-1, 0, 0): # base right, plate faces -X
+				_add_box(b, lx, ly, lz, 0.0, 0.25, 0.0, 1.0, 0.0, 1.0)
+				_add_box(b, lx, ly, lz, 0.25, 1.0, 0.35, 0.65, 0.35, 0.65)
+			Vector3i(0, 0, 1): # base north, plate faces +Z
+				_add_box(b, lx, ly, lz, 0.0, 1.0, 0.75, 1.0, 0.0, 1.0)
+				_add_box(b, lx, ly, lz, 0.35, 0.65, 0.0, 0.75, 0.35, 0.65)
+			Vector3i(0, 0, -1): # base south, plate faces -Z
+				_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 0.25, 0.0, 1.0)
+				_add_box(b, lx, ly, lz, 0.35, 0.65, 0.25, 1.0, 0.35, 0.65)
+			Vector3i(0, -1, 0): # base above, plate faces down
+				_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 1.0, 0.0, 0.25)
+				_add_box(b, lx, ly, lz, 0.35, 0.65, 0.35, 0.65, 0.25, 1.0)
+			_: # base below, plate faces up
+				_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 1.0, 0.75, 1.0)
+				_add_box(b, lx, ly, lz, 0.35, 0.65, 0.35, 0.65, 0.0, 0.75)
 	else:
 		# Base body + face plate
 		_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 1.0, 0.0, 0.75)
 		_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 1.0, 0.75, 1.0)
+
+
+func _piston_head_direction(world, head: Vector3i) -> Vector3i:
+	if world == null or not world.has_method("get_block_no_gen"):
+		return Vector3i.UP
+	# A head is always exactly one cell in front of its base. Deriving orientation
+	# from that adjacency also works in worker snapshots without accessing Game.
+	var directions: Array[Vector3i] = [
+		Vector3i.RIGHT, Vector3i.LEFT, Vector3i.FORWARD, Vector3i.BACK,
+		Vector3i.UP, Vector3i.DOWN
+	]
+	for dir in directions:
+		var base := head - dir
+		var base_id := str(world.get_block_no_gen(base.x, base.y, base.z))
+		if base_id == "piston" or base_id == "sticky_piston":
+			return dir
+	return Vector3i.UP
 
 
 func _add_fence(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
@@ -546,6 +651,8 @@ func warm_cache() -> void:
 		_water_shader = load("res://shaders/water_realistic.gdshader")
 	if _plant_wind_shader == null:
 		_plant_wind_shader = load("res://shaders/plant_wind.gdshader")
+	if _two_sided_shader == null:
+		_two_sided_shader = load("res://shaders/voxel_two_sided.gdshader")
 	# Pre-warm frequent block materials
 	for id in ["stone", "dirt", "grass_block", "sand", "gravel", "oak_log", "oak_leaves",
 			"water", "lava", "bedrock", "coal_ore", "iron_ore", "glass", "snow",
@@ -592,15 +699,68 @@ func _material_for(id: String) -> Material:
 		wm.shader = _get_plant_wind_shader()
 		wm.set_shader_parameter("albedo_texture", Textures.get_texture(id))
 		m = wm
+	elif (not TRANSPARENT_MATS.has(id)
+			and id != "fire"
+			and not id.begins_with("redstone")
+			and id != "redstone_torch"
+			and id != "redstone_torch_on"
+			and id != "repeater_on"
+			and id != "powered_rail"):
+		if _two_sided_shader != null:
+			# Keep geometry two-sided, but flip the lighting normal for back faces.
+			# This preserves every cube/special-model side without black reverse faces.
+			var tm := ShaderMaterial.new()
+			tm.shader = _two_sided_shader
+			tm.set_shader_parameter("albedo_texture", Textures.get_texture(id))
+			m = tm
+		else:
+			# Never assign an empty ShaderMaterial: it makes the entire voxel world
+			# render as white/transparent fallback geometry.
+			var fallback := StandardMaterial3D.new()
+			fallback.albedo_texture = Textures.get_texture(id)
+			fallback.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			fallback.cull_mode = BaseMaterial3D.CULL_BACK
+			fallback.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			fallback.roughness = 1.0
+			fallback.metallic = 0.0
+			m = fallback
 	else:
 		var sd := StandardMaterial3D.new()
 		sd.albedo_texture = Textures.get_texture(id)
 		sd.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		# Chunk cubes and special models use mixed winding and several intentionally
+		# thin/two-sided surfaces. Global face culling breaks valid block sides.
 		sd.cull_mode = BaseMaterial3D.CULL_DISABLED
 		if TRANSPARENT_MATS.has(id):
 			sd.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			if id == "water" or id == "lava":
 				sd.albedo_color = Color(1, 1, 1, 0.7)
+		# Redstone dust / torch glow (power look)
+		var base_id = id.split("#")[0] if "#" in id else id
+		var power_lvl = 0
+		if "#" in id:
+			power_lvl = int(id.split("#")[1])
+		if base_id == "redstone" or base_id == "redstone_torch" or base_id == "redstone_torch_on" or base_id == "repeater_on":
+			sd.emission_enabled = true
+			var strength = float(power_lvl) / 15.0 if power_lvl > 0 else (1.0 if base_id != "redstone" else 0.25)
+			if base_id == "redstone" and power_lvl <= 0:
+				strength = 0.15  # unpowered dull red
+			sd.emission = Color(1.0, 0.12 + strength * 0.2, 0.05)
+			sd.emission_energy_multiplier = 0.4 + strength * 3.2
+			sd.albedo_color = Color(0.5 + strength * 0.5, 0.08 + strength * 0.15, 0.05)
+			sd.albedo_texture = null
+		if id == "fire":
+			sd.emission_enabled = true
+			sd.emission = Color(1.0, 0.45, 0.05)
+			sd.emission_energy_multiplier = 3.5
+			sd.albedo_color = Color(1.0, 0.5, 0.1)
+			sd.albedo_texture = null
+			sd.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			sd.albedo_color.a = 0.85
+		if id == "powered_rail":
+			sd.emission_enabled = true
+			sd.emission = Color(1.0, 0.3, 0.1)
+			sd.emission_energy_multiplier = 1.4
 		m = sd
 
 	_mat_cache[cache_key] = m
@@ -625,13 +785,46 @@ func _add_dropper_like(groups: Dictionary, lx: int, ly: int, lz: int, id: String
 	_add_box(b, lx, ly, lz, 0.25, 0.75, 0.85, 1.0, 0.25, 0.75)
 
 
-func _add_rail(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
+func _is_rail_id(rid: String) -> bool:
+	return rid in ["rail", "powered_rail", "detector_rail"]
+
+
+func _add_rail(groups: Dictionary, lx: int, ly: int, lz: int, id: String, world = null, wx: int = 0, wz: int = 0) -> void:
 	var b = _ensure_group(groups, id)
-	# Two rails + ties
-	_add_box(b, lx, ly, lz, 0.15, 0.25, 0.0, 1.0, 0.0, 0.08)
-	_add_box(b, lx, ly, lz, 0.75, 0.85, 0.0, 1.0, 0.0, 0.08)
-	_add_box(b, lx, ly, lz, 0.1, 0.9, 0.2, 0.35, 0.0, 0.05)
-	_add_box(b, lx, ly, lz, 0.1, 0.9, 0.65, 0.8, 0.0, 0.05)
+	var gy = ly
+	var n = world != null and _is_rail_id(str(world.get_block_no_gen(wx, gy, wz - 1)))
+	var s = world != null and _is_rail_id(str(world.get_block_no_gen(wx, gy, wz + 1)))
+	var w = world != null and _is_rail_id(str(world.get_block_no_gen(wx - 1, gy, wz)))
+	var e = world != null and _is_rail_id(str(world.get_block_no_gen(wx + 1, gy, wz)))
+	var ns = n or s
+	var ew = w or e
+	# Curve: both axes
+	if ns and ew:
+		# curved corner piece
+		if n:
+			_add_box(b, lx, ly, lz, 0.15, 0.25, 0.0, 0.55, 0.0, 0.08)
+			_add_box(b, lx, ly, lz, 0.75, 0.85, 0.0, 0.55, 0.0, 0.08)
+		if s:
+			_add_box(b, lx, ly, lz, 0.15, 0.25, 0.45, 1.0, 0.0, 0.08)
+			_add_box(b, lx, ly, lz, 0.75, 0.85, 0.45, 1.0, 0.0, 0.08)
+		if w:
+			_add_box(b, lx, ly, lz, 0.0, 0.55, 0.15, 0.25, 0.0, 0.08)
+			_add_box(b, lx, ly, lz, 0.0, 0.55, 0.75, 0.85, 0.0, 0.08)
+		if e:
+			_add_box(b, lx, ly, lz, 0.45, 1.0, 0.15, 0.25, 0.0, 0.08)
+			_add_box(b, lx, ly, lz, 0.45, 1.0, 0.75, 0.85, 0.0, 0.08)
+	elif ew and not ns:
+		# East-West straight
+		_add_box(b, lx, ly, lz, 0.0, 1.0, 0.15, 0.25, 0.0, 0.08)
+		_add_box(b, lx, ly, lz, 0.0, 1.0, 0.75, 0.85, 0.0, 0.08)
+		_add_box(b, lx, ly, lz, 0.3, 0.45, 0.1, 0.9, 0.0, 0.05)
+		_add_box(b, lx, ly, lz, 0.55, 0.7, 0.1, 0.9, 0.0, 0.05)
+	else:
+		# North-South default
+		_add_box(b, lx, ly, lz, 0.15, 0.25, 0.0, 1.0, 0.0, 0.08)
+		_add_box(b, lx, ly, lz, 0.75, 0.85, 0.0, 1.0, 0.0, 0.08)
+		_add_box(b, lx, ly, lz, 0.1, 0.9, 0.3, 0.45, 0.0, 0.05)
+		_add_box(b, lx, ly, lz, 0.1, 0.9, 0.55, 0.7, 0.0, 0.05)
 
 
 func _add_repeater_like(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
@@ -641,3 +834,44 @@ func _add_repeater_like(groups: Dictionary, lx: int, ly: int, lz: int, id: Strin
 	# Two torch stubs
 	_add_box(b, lx, ly, lz, 0.2, 0.35, 0.4, 0.6, 0.125, 0.45)
 	_add_box(b, lx, ly, lz, 0.65, 0.8, 0.4, 0.6, 0.125, 0.45)
+
+
+func _add_enchanting_table(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
+	var b = _ensure_group(groups, id)
+	# Short dark base
+	_add_box(b, lx, ly, lz, 0.0, 1.0, 0.0, 1.0, 0.0, 0.75)
+	# Book on top (lighter inset)
+	_add_box(b, lx, ly, lz, 0.2, 0.8, 0.25, 0.75, 0.75, 0.95)
+	# Side legs
+	_add_box(b, lx, ly, lz, 0.0, 0.2, 0.0, 0.2, 0.0, 0.75)
+	_add_box(b, lx, ly, lz, 0.8, 1.0, 0.0, 0.2, 0.0, 0.75)
+	_add_box(b, lx, ly, lz, 0.0, 0.2, 0.8, 1.0, 0.0, 0.75)
+	_add_box(b, lx, ly, lz, 0.8, 1.0, 0.8, 1.0, 0.0, 0.75)
+
+
+func _add_portal(groups: Dictionary, lx: int, ly: int, lz: int, id: String, world = null, wx: int = 0, wz: int = 0) -> void:
+	var b = _ensure_group(groups, id)
+	var axis := "x"
+	if id == "end_portal":
+		# Flat interior sheet
+		_add_quad(b, lx, ly, lz, Vector3(0, 0.15, 0), Vector3(1, 0.15, 0), Vector3(1, 0.15, 1), Vector3(0, 0.15, 1), Vector3(0, 1, 0))
+		return
+	# Detect frame axis so the sheet is thin like Minecraft
+	if world != null:
+		var left = str(world.get_block_no_gen(wx - 1, ly, wz))
+		var right = str(world.get_block_no_gen(wx + 1, ly, wz))
+		if left == id or right == id or left in ["obsidian", "glowstone"] or right in ["obsidian", "glowstone"]:
+			axis = "z"
+	if axis == "z":
+		_add_quad(b, lx, ly, lz, Vector3(0.0, 0.0, 0.45), Vector3(1.0, 0.0, 0.45), Vector3(1.0, 1.0, 0.45), Vector3(0.0, 1.0, 0.45), Vector3(0, 0, 1))
+		_add_quad(b, lx, ly, lz, Vector3(0.0, 0.0, 0.55), Vector3(0.0, 1.0, 0.55), Vector3(1.0, 1.0, 0.55), Vector3(1.0, 0.0, 0.55), Vector3(0, 0, -1))
+	else:
+		_add_quad(b, lx, ly, lz, Vector3(0.45, 0.0, 0.0), Vector3(0.45, 0.0, 1.0), Vector3(0.45, 1.0, 1.0), Vector3(0.45, 1.0, 0.0), Vector3(1, 0, 0))
+		_add_quad(b, lx, ly, lz, Vector3(0.55, 0.0, 0.0), Vector3(0.55, 1.0, 0.0), Vector3(0.55, 1.0, 1.0), Vector3(0.55, 0.0, 1.0), Vector3(-1, 0, 0))
+
+
+func _add_fire(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> void:
+	var b = _ensure_group(groups, id)
+	# Cross flames
+	_add_box(b, lx, ly, lz, 0.35, 0.65, 0.2, 0.8, 0.0, 0.9)
+	_add_box(b, lx, ly, lz, 0.2, 0.8, 0.35, 0.65, 0.0, 0.85)

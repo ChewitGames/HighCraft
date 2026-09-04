@@ -180,6 +180,74 @@
 		[
 			"nether_star",
 			"Nether Star"
+		],
+		[
+			"wheat_seeds",
+			"Wheat Seeds"
+		],
+		[
+			"carrot",
+			"Carrot"
+		],
+		[
+			"potato",
+			"Potato"
+		],
+		[
+			"glass_bottle",
+			"Glass Bottle"
+		],
+		[
+			"water_bottle",
+			"Water Bottle"
+		],
+		[
+			"awkward_potion",
+			"Awkward Potion"
+		],
+		[
+			"mundane_potion",
+			"Mundane Potion"
+		],
+		[
+			"thick_potion",
+			"Thick Potion"
+		],
+		[
+			"eye_of_ender",
+			"Eye of Ender"
+		],
+		[
+			"end_crystal",
+			"End Crystal"
+		],
+		[
+			"enchanted_book",
+			"Enchanted Book"
+		],
+		[
+			"fermented_spider_eye",
+			"Fermented Spider Eye"
+		],
+		[
+			"glistering_melon",
+			"Glistering Melon"
+		],
+		[
+			"golden_carrot",
+			"Golden Carrot"
+		],
+		[
+			"brewing_stand",
+			"Brewing Stand"
+		],
+		[
+			"brown_mushroom",
+			"Brown Mushroom"
+		],
+		[
+			"red_mushroom",
+			"Red Mushroom"
 		]
 	],
 	"foods": [
@@ -402,13 +470,142 @@
 		[
 			"detector_rail",
 			"Detector Rail"
+		],
+		[
+			"realm_stone_chaos",
+			"Realm Stone Chaos"
+		],
+		[
+			"realm_stone_gaia",
+			"Realm Stone Gaia"
+		],
+		[
+			"realm_stone_tartaros",
+			"Realm Stone Tartaros"
+		],
+		[
+			"realm_stone_nyx",
+			"Realm Stone Nyx"
+		],
+		[
+			"realm_stone_erebos",
+			"Realm Stone Erebos"
+		],
+		[
+			"realm_stone_aither",
+			"Realm Stone Aither"
+		],
+		[
+			"realm_stone_hemera",
+			"Realm Stone Hemera"
+		],
+		[
+			"realm_stone_uranos",
+			"Realm Stone Uranos"
+		],
+		[
+			"realm_stone_chronos",
+			"Realm Stone Chronos"
+		],
+		[
+			"realm_stone_ananke",
+			"Realm Stone Ananke"
+		],
+		[
+			"realm_stone_zeus",
+			"Realm Stone Zeus"
+		],
+		[
+			"realm_stone_poseidon",
+			"Realm Stone Poseidon"
+		],
+		[
+			"realm_stone_hades",
+			"Realm Stone Hades"
+		],
+		[
+			"realm_stone_athena",
+			"Realm Stone Athena"
+		],
+		[
+			"realm_stone_ares",
+			"Realm Stone Ares"
+		],
+		[
+			"realm_stone_creation",
+			"Realm Stone Creation"
+		],
+		[
+			"realm_stone_mania",
+			"Realm Stone Mania"
+		],
+		[
+			"devil_sword_karitas",
+			"Devil Sword Karitas"
+		],
+		[
+			"godly_sword_eidorian",
+			"Godly Sword Eidorian"
+		],
+		[
+			"holy_sword_tetra",
+			"Holy Sword Tetra"
+		],
+		[
+			"realm_stone_hera",
+			"Realm Stone Hera"
+		],
+		[
+			"realm_stone_demeter",
+			"Realm Stone Demeter"
+		],
+		[
+			"realm_stone_hestia",
+			"Realm Stone Hestia"
+		],
+		[
+			"realm_stone_apollon",
+			"Realm Stone Apollon"
+		],
+		[
+			"realm_stone_artemis",
+			"Realm Stone Artemis"
+		],
+		[
+			"realm_stone_aphrodite",
+			"Realm Stone Aphrodite"
+		],
+		[
+			"realm_stone_hephaistos",
+			"Realm Stone Hephaistos"
+		],
+		[
+			"realm_stone_hermes",
+			"Realm Stone Hermes"
+		],
+		[
+			"realm_stone_dionysos",
+			"Realm Stone Dionysos"
+		],
+		[
+			"nether_wart",
+			"Nether Wart"
+		],
+		[
+			"wither_skeleton_skull",
+			"Wither Skeleton Skull"
+		],
+		[
+			"carved_pumpkin",
+			"Carved Pumpkin"
 		]
 	],
 	"tool_types": [
 		"pickaxe",
 		"axe",
 		"shovel",
-		"sword"
+		"sword",
+		"hoe"
 	],
 	"tool_materials": [
 		"wood",
@@ -448,7 +645,8 @@
 		"sword": 1,
 		"axe": 2,
 		"pickaxe": 0,
-		"shovel": 0
+		"shovel": 0,
+		"hoe": 0
 	},
 	"armor_slots": [
 		"helmet",

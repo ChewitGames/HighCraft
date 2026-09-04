@@ -1,38 +1,34 @@
 [
-  {
-	"id": "potion_speed",
-	"name": "Potion of Swiftness",
-	"base": "awkward_potion",
-	"ingredient": "sugar",
-	"effects": [
-	  { "type": "speed", "duration": 180, "amplifier": 0 }
-	]
-  },
-  {
-	"id": "potion_strength",
-	"name": "Potion of Strength",
-	"base": "awkward_potion",
-	"ingredient": "blaze_powder",
-	"effects": [
-	  { "type": "strength", "duration": 180, "amplifier": 0 }
-	]
-  },
-  {
-	"id": "potion_regeneration",
-	"name": "Potion of Regeneration",
-	"base": "awkward_potion",
-	"ingredient": "ghast_tear",
-	"effects": [
-	  { "type": "regeneration", "duration": 45, "amplifier": 0 }
-	]
-  },
-  {
-	"id": "potion_fire_resistance",
-	"name": "Potion of Fire Resistance",
-	"base": "awkward_potion",
-	"ingredient": "magma_cream",
-	"effects": [
-	  { "type": "fire_resistance", "duration": 180, "amplifier": 0 }
-	]
-  }
+  {"id":"glass_bottle","name":"Glass Bottle","base":"","ingredient":"","effects":[]},
+  {"id":"water_bottle","name":"Water Bottle","base":"glass_bottle","ingredient":"water_bucket","effects":[]},
+  {"id":"awkward_potion","name":"Awkward Potion","base":"water_bottle","ingredient":"nether_wart","effects":[]},
+  {"id":"mundane_potion","name":"Mundane Potion","base":"water_bottle","ingredient":"redstone","effects":[]},
+  {"id":"thick_potion","name":"Thick Potion","base":"water_bottle","ingredient":"glowstone_dust","effects":[]},
+  {"id":"potion_night_vision","name":"Potion of Night Vision","base":"awkward_potion","ingredient":"golden_carrot","effects":[{"type":"night_vision","duration":180,"amplifier":0}]},
+  {"id":"potion_night_vision_long","name":"Potion of Night Vision","base":"potion_night_vision","ingredient":"redstone","effects":[{"type":"night_vision","duration":480,"amplifier":0}]},
+  {"id":"potion_invisibility","name":"Potion of Invisibility","base":"potion_night_vision","ingredient":"fermented_spider_eye","effects":[{"type":"invisibility","duration":180,"amplifier":0}]},
+  {"id":"potion_invisibility_long","name":"Potion of Invisibility","base":"potion_invisibility","ingredient":"redstone","effects":[{"type":"invisibility","duration":480,"amplifier":0}]},
+  {"id":"potion_swiftness","name":"Potion of Swiftness","base":"awkward_potion","ingredient":"sugar","effects":[{"type":"speed","duration":180,"amplifier":0}]},
+  {"id":"potion_swiftness_long","name":"Potion of Swiftness","base":"potion_swiftness","ingredient":"redstone","effects":[{"type":"speed","duration":480,"amplifier":0}]},
+  {"id":"potion_swiftness_strong","name":"Potion of Swiftness II","base":"potion_swiftness","ingredient":"glowstone_dust","effects":[{"type":"speed","duration":90,"amplifier":1}]},
+  {"id":"potion_slowness","name":"Potion of Slowness","base":"potion_swiftness","ingredient":"fermented_spider_eye","effects":[{"type":"slowness","duration":90,"amplifier":0}]},
+  {"id":"potion_slowness_long","name":"Potion of Slowness","base":"potion_slowness","ingredient":"redstone","effects":[{"type":"slowness","duration":240,"amplifier":0}]},
+  {"id":"potion_leaping","name":"Potion of Leaping","base":"awkward_potion","ingredient":"slimeball","effects":[{"type":"jump_boost","duration":180,"amplifier":0}]},
+  {"id":"potion_fire_resistance","name":"Potion of Fire Resistance","base":"awkward_potion","ingredient":"magma_cream","effects":[{"type":"fire_resistance","duration":180,"amplifier":0}]},
+  {"id":"potion_fire_resistance_long","name":"Potion of Fire Resistance","base":"potion_fire_resistance","ingredient":"redstone","effects":[{"type":"fire_resistance","duration":480,"amplifier":0}]},
+  {"id":"potion_poison","name":"Potion of Poison","base":"awkward_potion","ingredient":"spider_eye","effects":[{"type":"poison","duration":45,"amplifier":0}]},
+  {"id":"potion_poison_long","name":"Potion of Poison","base":"potion_poison","ingredient":"redstone","effects":[{"type":"poison","duration":120,"amplifier":0}]},
+  {"id":"potion_poison_strong","name":"Potion of Poison II","base":"potion_poison","ingredient":"glowstone_dust","effects":[{"type":"poison","duration":22,"amplifier":1}]},
+  {"id":"potion_regeneration","name":"Potion of Regeneration","base":"awkward_potion","ingredient":"ghast_tear","effects":[{"type":"regeneration","duration":45,"amplifier":0}]},
+  {"id":"potion_regeneration_long","name":"Potion of Regeneration","base":"potion_regeneration","ingredient":"redstone","effects":[{"type":"regeneration","duration":120,"amplifier":0}]},
+  {"id":"potion_regeneration_strong","name":"Potion of Regeneration II","base":"potion_regeneration","ingredient":"glowstone_dust","effects":[{"type":"regeneration","duration":22,"amplifier":1}]},
+  {"id":"potion_strength","name":"Potion of Strength","base":"awkward_potion","ingredient":"blaze_powder","effects":[{"type":"strength","duration":180,"amplifier":0}]},
+  {"id":"potion_strength_long","name":"Potion of Strength","base":"potion_strength","ingredient":"redstone","effects":[{"type":"strength","duration":480,"amplifier":0}]},
+  {"id":"potion_strength_strong","name":"Potion of Strength II","base":"potion_strength","ingredient":"glowstone_dust","effects":[{"type":"strength","duration":90,"amplifier":1}]},
+  {"id":"potion_weakness","name":"Potion of Weakness","base":"water_bottle","ingredient":"fermented_spider_eye","effects":[{"type":"weakness","duration":90,"amplifier":0}]},
+  {"id":"potion_weakness_long","name":"Potion of Weakness","base":"potion_weakness","ingredient":"redstone","effects":[{"type":"weakness","duration":240,"amplifier":0}]},
+  {"id":"potion_healing","name":"Potion of Healing","base":"awkward_potion","ingredient":"glistering_melon","effects":[{"type":"instant_health","duration":0.1,"amplifier":0}]},
+  {"id":"potion_healing_strong","name":"Potion of Healing II","base":"potion_healing","ingredient":"glowstone_dust","effects":[{"type":"instant_health","duration":0.1,"amplifier":1}]},
+  {"id":"potion_harming","name":"Potion of Harming","base":"potion_healing","ingredient":"fermented_spider_eye","effects":[{"type":"instant_damage","duration":0.1,"amplifier":0}]},
+  {"id":"potion_harming_strong","name":"Potion of Harming II","base":"potion_harming","ingredient":"glowstone_dust","effects":[{"type":"instant_damage","duration":0.1,"amplifier":1}]}
 ]

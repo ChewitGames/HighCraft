@@ -11,8 +11,10 @@ const SPAWN_MAX = 30.0
 
 var world
 var player
+var game
 var dimension: String = "overworld"
 var get_is_night: Callable = Callable()
+var get_is_raining: Callable = Callable()
 
 var _t: float = 2.0
 var _passive: Array = []
@@ -67,7 +69,11 @@ func mob_count() -> int:
 
 
 func _try_spawn() -> void:
-	var pool = _hostile if _is_night() else _passive
+	var night = _is_night()
+	var raining := false
+	if get_is_raining.is_valid():
+		raining = bool(get_is_raining.call())
+	var pool = _hostile if (night or raining) else _passive
 	if pool.is_empty() or mob_count() >= MAX_MOBS:
 		return
 	var ang = randf() * TAU
@@ -75,9 +81,21 @@ func _try_spawn() -> void:
 	var px = int(player.global_position.x + cos(ang) * r)
 	var pz = int(player.global_position.z + sin(ang) * r)
 	var sy = world.surface_height(px, pz)
-	if world.get_block(px, sy, pz) == "water":
+	var ground = str(world.get_block(px, sy, pz))
+	if ground == "water" or ground == "lava" or ground == "air":
 		return
-	spawn(pool[randi() % pool.size()], Vector3(px + 0.5, sy + 1, pz + 0.5))
+	# Villagers only near village-like blocks
+	var mid = pool[randi() % pool.size()]
+	if mid == "villager":
+		var ok := false
+		for d in [Vector3i(0, 0, 0), Vector3i(1, 0, 0), Vector3i(0, 0, 1)]:
+			var b = str(world.get_block(px + d.x, sy, pz + d.z))
+			if b in ["oak_planks", "cobblestone", "oak_log", "door_oak", "farmland", "farmland_moist"]:
+				ok = true
+		if not ok:
+			return
+	# Hostiles need darkness (night/rain) — already gated by pool
+	spawn(mid, Vector3(px + 0.5, sy + 1, pz + 0.5))
 
 
 func spawn(mob_id: String, pos: Vector3):

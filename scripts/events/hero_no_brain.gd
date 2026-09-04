@@ -28,7 +28,7 @@ func _physics_process(delta: float) -> void:
 
 	if dist < 2.2:
 		# Explodiert
-		player.take_damage(12.0)
+		player.take_damage(12.0, global_position)
 		Audio.play("explode", 0.0)
 		queue_free()
 		return

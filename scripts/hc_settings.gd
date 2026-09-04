@@ -23,6 +23,8 @@ var splitscreen_players: int = 1
 var splitscreen_layout: String = "auto"
 var controller_aim_sensitivity: float = 1.2
 var controller_deadzone: float = 0.18
+var selected_skin_name: String = "afro_steve"
+var local_player_skins: Array[String] = ["afro_steve", "afro_steve", "afro_steve", "afro_steve"]
 
 # Gemeinsame Controller-Navigation für Settings-UIs. Die eigentliche Settings-Szene
 # kann diese Helfer verwenden, ohne eigene D-Pad/Stick-Logik zu duplizieren.
@@ -40,17 +42,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _controller_nav_cooldown > 0.0:
 		return
 
-	# WICHTIG: NICHT get_viewport().gui_get_focus_owner() verwenden – das
-	# Settings-Fenster ist ein eigenes Window (= eigener Viewport), das
-	# Autoload sitzt aber im Haupt-Viewport. Wir tracken den Fokus deshalb
-	# selbst statt ihn viewport-übergreifend abzufragen.
+	# Never discover settings controls by walking the complete scene tree here.
+	# Joypad motion can arrive hundreds of times per second, and the gameplay
+	# scene contains every chunk, collider, mob and split-screen UI. That scan
+	# made analog movement increasingly expensive while keyboard polling stayed
+	# cheap. Settings UIs register/retain their actual focus instead.
 	var focus = _settings_focus
 	if focus == null or not is_instance_valid(focus) or not _is_settings_control(focus):
-		focus = _find_settings_focus()
-		if focus != null:
-			focus.grab_focus()
-			_settings_focus = focus
-	if focus == null or not is_instance_valid(focus) or not _is_settings_control(focus):
+		_settings_focus = null
 		return
 
 	if event is InputEventJoypadMotion:
@@ -207,8 +206,15 @@ func load_settings() -> void:
 	splitscreen_layout = str(cfg.get_value("split", "layout", splitscreen_layout))
 	controller_aim_sensitivity = float(cfg.get_value("pad", "aim", controller_aim_sensitivity))
 	controller_deadzone = float(cfg.get_value("pad", "deadzone", controller_deadzone))
+	selected_skin_name = str(cfg.get_value("avatar", "selected_skin", selected_skin_name))
+	var saved_skins = cfg.get_value("avatar", "local_player_skins", local_player_skins)
+	if saved_skins is Array:
+		for i in range(mini(saved_skins.size(), 4)):
+			local_player_skins[i] = str(saved_skins[i])
+	local_player_skins[0] = selected_skin_name
 
 func save_settings() -> void:
+	local_player_skins[0] = selected_skin_name
 	var cfg = ConfigFile.new()
 	cfg.set_value("gfx", "render_distance", render_distance)
 	cfg.set_value("gfx", "max_fps", max_fps)
@@ -231,9 +237,27 @@ func save_settings() -> void:
 	cfg.set_value("split", "layout", splitscreen_layout)
 	cfg.set_value("pad", "aim", controller_aim_sensitivity)
 	cfg.set_value("pad", "deadzone", controller_deadzone)
+	cfg.set_value("avatar", "selected_skin", selected_skin_name)
+	cfg.set_value("avatar", "local_player_skins", local_player_skins)
 	cfg.save(PATH)
 	apply_graphics()
 	settings_changed.emit()
+
+
+func get_local_player_skin(index: int) -> String:
+	var slot := clampi(index, 0, local_player_skins.size() - 1)
+	if slot == 0:
+		return selected_skin_name
+	return local_player_skins[slot]
+
+
+func set_local_player_skin(index: int, skin_name: String, persist: bool = true) -> void:
+	var slot := clampi(index, 0, local_player_skins.size() - 1)
+	local_player_skins[slot] = skin_name
+	if slot == 0:
+		selected_skin_name = skin_name
+	if persist:
+		save_settings()
 
 func apply_graphics() -> void:
 	Engine.max_fps = max_fps

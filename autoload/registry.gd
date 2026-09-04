@@ -37,6 +37,8 @@ func _ready() -> void:
 	_load_trades()
 	load_enchantments()
 	load_potions()
+	_register_potion_items()
+	_register_enchanted_books()
 	print("[HighCraft] Registry loaded -> ", summary())
 	
 func load_block_models() -> void:
@@ -269,6 +271,114 @@ func load_potions() -> void:
 			print("[Registry] Loaded ", potions.size(), " potions")
 		file.close()
 
+
+func _register_potion_items() -> void:
+	for pid in potions.keys():
+		var pot = potions[pid]
+		if not items.has(pid):
+			items[pid] = {
+				"id": pid,
+				"name": str(pot.get("name", _title(pid))),
+				"type": "potion",
+				"max_stack": 1,
+				"effects": pot.get("effects", []),
+			}
+		else:
+			items[pid]["type"] = "potion"
+			items[pid]["effects"] = pot.get("effects", [])
+		# Splash variant
+		var sid = "splash_" + pid
+		if pid.begins_with("potion_") or pid in ["awkward_potion", "mundane_potion", "thick_potion", "water_bottle"]:
+			if not items.has(sid):
+				items[sid] = {
+					"id": sid,
+					"name": "Splash " + str(pot.get("name", _title(pid))),
+					"type": "potion",
+					"max_stack": 1,
+					"effects": pot.get("effects", []),
+					"splash": true,
+				}
+			if not potions.has(sid):
+				var splash = pot.duplicate(true)
+				splash["id"] = sid
+				splash["name"] = "Splash " + str(pot.get("name", _title(pid)))
+				splash["base"] = pid
+				splash["ingredient"] = "gunpowder"
+				potions[sid] = splash
+	# Ensure bottles exist as items
+	if not items.has("glass_bottle"):
+		items["glass_bottle"] = {"id": "glass_bottle", "name": "Glass Bottle", "type": "material", "max_stack": 64}
+	if not items.has("water_bottle"):
+		items["water_bottle"] = {"id": "water_bottle", "name": "Water Bottle", "type": "potion", "max_stack": 1}
+
+
+func _register_enchanted_books() -> void:
+	if not items.has("enchanted_book"):
+		items["enchanted_book"] = {"id": "enchanted_book", "name": "Enchanted Book", "type": "book", "max_stack": 1}
+	if not items.has("book"):
+		items["book"] = {"id": "book", "name": "Book", "type": "material", "max_stack": 64}
+	for eid in enchantments.keys():
+		var book_id = "enchanted_book_" + str(eid)
+		if items.has(book_id):
+			continue
+		var ench = enchantments[eid]
+		items[book_id] = {
+			"id": book_id,
+			"name": "Enchanted Book: " + str(ench.get("name", _title(eid))),
+			"type": "book",
+			"max_stack": 1,
+			"stored_enchant": eid,
+		}
+
+
+func brew_result(base_id: String, ingredient: String) -> String:
+	for pid in potions.keys():
+		var pot = potions[pid]
+		if str(pot.get("base", "")) == base_id and str(pot.get("ingredient", "")) == ingredient:
+			return str(pid)
+	if ingredient == "gunpowder":
+		if base_id.begins_with("splash_"):
+			return ""
+		if potions.has(base_id) or items.has(base_id):
+			return "splash_" + base_id
+	return ""
+
+
+func normalize_dimension_id(id: String) -> String:
+	var s := id.strip_edges().to_lower()
+	if s in ["nether", "the_nether", "the_hell", "hell_dimension"]:
+		return "hell"
+	if s in ["end", "theend", "the_end"]:
+		return "the_end"
+	if s in ["the_heaven", "sky", "aether"]:
+		return "heaven"
+	if dimensions.has(s):
+		return s
+	return "overworld"
+
+
+func require_dimension(id: String) -> String:
+	return normalize_dimension_id(id)
+
+
+func get_dimension(id: String) -> Dictionary:
+	var canon := normalize_dimension_id(id)
+	return dimensions.get(canon, {"id": canon, "name": _title(canon)})
+
+
+func roman_level(level: int) -> String:
+	var map = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+	if level >= 0 and level < map.size():
+		return map[level]
+	return str(level)
+
+
+func enchantment_display(eid: String, level: int) -> String:
+	var name := _title(eid)
+	if enchantments.has(eid):
+		name = str(enchantments[eid].get("name", name))
+	return name + " " + roman_level(level)
+
 # Call these two functions in your _ready() or after loading other data:
 # load_enchantments()
 # load_potions()
@@ -311,8 +421,13 @@ func is_opaque(id: String) -> bool:
 	var mt = str(model.get("type", ""))
 	if mt in [
 		"redstone_wire", "torch", "rail", "pressure_plate", "button",
-		"lever", "fence", "fence_gate", "cross", "hopper", "anvil", "bed"
+		"lever", "fence", "fence_gate", "cross", "hopper", "anvil", "bed", "fire",
+		"stairs", "door", "trapdoor", "chest", "piston", "piston_head",
+		"dropper", "dispenser", "repeater", "comparator", "daylight_sensor",
+		"skull", "enchanting_table", "portal"
 	]:
+		return false
+	if id in ["nether_portal", "heaven_portal", "end_portal", "fire", "end_crystal", "brewing_stand"]:
 		return false
 	return true
 

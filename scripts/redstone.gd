@@ -5,6 +5,7 @@ extends RefCounted
 
 const MAX_WIRE_STEPS := 512
 const MAX_STRENGTH := 15
+const MAX_PISTON_PUSH := 12
 
 # cell -> strength (computed during pulse)
 static var _power: Dictionary = {}
@@ -140,7 +141,16 @@ static func powered_neighbors(world, cell: Vector3i) -> bool:
 
 
 static func pulse(game, world, renderer, origin: Vector3i) -> void:
+	# Keep the previously powered cells: after a source switches off the freshly
+	# computed map is empty, but consumers beside the old wire still need an
+	# explicit off/retract update.
+	var previous_power: Dictionary = _power.duplicate()
 	_compute_power(world, origin)
+	# Persist for mesher glow + rebuild touched wire chunks
+	if game != null:
+		game.redstone_power = _power.duplicate()
+	_rebuild_powered_chunks(world, renderer, previous_power)
+	_rebuild_powered_chunks(world, renderer, _power)
 
 	# Update repeater visual on/off near network
 	var check: Dictionary = {}
@@ -148,6 +158,10 @@ static func pulse(game, world, renderer, origin: Vector3i) -> void:
 	for n in neighbors(origin):
 		check[n] = true
 	for c in _power.keys():
+		check[c] = true
+		for n in neighbors(c):
+			check[n] = true
+	for c in previous_power.keys():
 		check[c] = true
 		for n in neighbors(c):
 			check[n] = true
@@ -204,52 +218,109 @@ static func piston_dir_from_meta(world, cell: Vector3i) -> Vector3i:
 	return Vector3i(1, 0, 0)
 
 
-static func _try_extend_piston(game, world, renderer, cell: Vector3i, sticky: bool) -> void:
-	var dir = Vector3i(1, 0, 0)
-	if game != null and game.get("piston_facing") != null:
+static func _piston_dir(game, cell: Vector3i) -> Vector3i:
+	if game != null and game.get("piston_facing") is Dictionary:
 		var fac = game.piston_facing
-		if fac is Dictionary and fac.has(cell):
-			dir = fac[cell]
+		if fac.has(cell):
+			return fac[cell]
+	return Vector3i(0, 1, 0)  # default: push up so head is visible
+
+
+static func _set_blk(renderer, world, x: int, y: int, z: int, id: String) -> void:
+	if renderer != null and renderer.has_method("edit_block"):
+		renderer.edit_block(x, y, z, id)
+	elif world != null:
+		world.set_block(x, y, z, id)
+
+
+static func _try_extend_piston(game, world, renderer, cell: Vector3i, sticky: bool) -> void:
+	var dir = _piston_dir(game, cell)
 	var head = cell + dir
-	var push = head + dir
-	var head_id = world.get_block(head.x, head.y, head.z)
+	# The real world state is authoritative. A stale cache entry must never block
+	# a new extension after an interrupted update.
+	if game != null:
+		if game.get("piston_extended") == null:
+			game.piston_extended = {}
+	var head_id = str(world.get_block(head.x, head.y, head.z))
 	if head_id == "piston_head":
+		if game != null:
+			game.piston_extended[cell] = true
 		return
-	if head_id != "air" and head_id != "water":
-		var beyond = world.get_block(push.x, push.y, push.z)
-		if beyond != "air" and beyond != "water":
+	# Collect a Minecraft-style line of up to 12 movable blocks. Move it from the
+	# far end backwards so no block is overwritten by the following one.
+	var chain_cells: Array[Vector3i] = []
+	var chain_ids: Array[String] = []
+	var cursor = head
+	var cursor_id = head_id
+	while cursor_id != "air" and cursor_id != "water" and cursor_id != "lava":
+		if cursor_id in ["bedrock", "obsidian", "piston_head"]:
 			return
-		if renderer:
-			renderer.edit_block(push.x, push.y, push.z, head_id)
-		else:
-			world.set_block(push.x, push.y, push.z, head_id)
-	if renderer:
-		renderer.edit_block(head.x, head.y, head.z, "piston_head")
-	else:
-		world.set_block(head.x, head.y, head.z, "piston_head")
+		if chain_cells.size() >= MAX_PISTON_PUSH:
+			return
+		chain_cells.append(cursor)
+		chain_ids.append(cursor_id)
+		cursor += dir
+		cursor_id = str(world.get_block(cursor.x, cursor.y, cursor.z))
+	for i in range(chain_cells.size() - 1, -1, -1):
+		var from_cell: Vector3i = chain_cells[i]
+		var destination = from_cell + dir
+		_set_blk(renderer, world, destination.x, destination.y, destination.z, chain_ids[i])
+	# Place head
+	_set_blk(renderer, world, head.x, head.y, head.z, "piston_head")
+	if game != null:
+		if game.get("piston_extended") == null:
+			game.piston_extended = {}
+		game.piston_extended[cell] = true
+		# remember dir for retract
+		if game.get("piston_facing") == null:
+			game.piston_facing = {}
+		if not game.piston_facing.has(cell):
+			game.piston_facing[cell] = dir
 
 
 static func _try_retract_piston(game, world, renderer, cell: Vector3i, sticky: bool) -> void:
-	var dir = Vector3i(1, 0, 0)
-	if game != null and game.get("piston_facing") != null:
-		var fac = game.piston_facing
-		if fac is Dictionary and fac.has(cell):
-			dir = fac[cell]
+	var dir = _piston_dir(game, cell)
 	var head = cell + dir
-	var head_id = world.get_block(head.x, head.y, head.z)
+	var head_id = str(world.get_block(head.x, head.y, head.z))
+	# Not extended / no head
 	if head_id != "piston_head":
+		# sticky may have left a pulled block where head was — still clear state
+		if game != null and game.get("piston_extended") is Dictionary:
+			game.piston_extended[cell] = false
 		return
-	if renderer:
-		renderer.edit_block(head.x, head.y, head.z, "air")
-	else:
-		world.set_block(head.x, head.y, head.z, "air")
 	if sticky:
-		var pull = head + dir
-		var pulled = world.get_block(pull.x, pull.y, pull.z)
-		if pulled != "air" and pulled != "water" and pulled != "bedrock" and pulled != "obsidian":
-			if renderer:
-				renderer.edit_block(head.x, head.y, head.z, pulled)
-				renderer.edit_block(pull.x, pull.y, pull.z, "air")
-			else:
-				world.set_block(head.x, head.y, head.z, pulled)
-				world.set_block(pull.x, pull.y, pull.z, "air")
+		var pulled = head + dir
+		var pid = str(world.get_block(pulled.x, pulled.y, pulled.z))
+		if pid != "air" and pid != "water" and pid != "lava" and pid != "piston_head":
+			# Pull block into the cell the head occupied
+			_set_blk(renderer, world, head.x, head.y, head.z, pid)
+			_set_blk(renderer, world, pulled.x, pulled.y, pulled.z, "air")
+			if game != null:
+				if game.get("piston_extended") == null:
+					game.piston_extended = {}
+				game.piston_extended[cell] = false
+			return
+	# Normal retract: remove head only (block stays pushed)
+	_set_blk(renderer, world, head.x, head.y, head.z, "air")
+	if game != null:
+		if game.get("piston_extended") == null:
+			game.piston_extended = {}
+		game.piston_extended[cell] = false
+
+
+static func _rebuild_powered_chunks(world, renderer, power_cells: Dictionary) -> void:
+	if renderer == null or world == null:
+		return
+	var seen: Dictionary = {}
+	for c in power_cells.keys():
+		var cell: Vector3i = c
+		var cx = int(floor(float(cell.x) / 16.0))
+		var cz = int(floor(float(cell.z) / 16.0))
+		var key = Vector2i(cx, cz)
+		if seen.has(key):
+			continue
+		seen[key] = true
+		if renderer.has_method("rebuild"):
+			renderer.rebuild(cx, cz)
+		elif renderer.has_method("rebuild_chunk"):
+			renderer.rebuild_chunk(cx, cz)

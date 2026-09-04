@@ -1,51 +1,24 @@
 [
-  {
-	"id": "sharpness",
-	"name": "Sharpness",
-	"max_level": 5,
-	"category": "weapon",
-	"effects": {
-	  "damage_bonus_per_level": 1.25
-	}
-  },
-  {
-	"id": "protection",
-	"name": "Protection",
-	"max_level": 4,
-	"category": "armor",
-	"effects": {
-	  "damage_reduction_percent_per_level": 4
-	}
-  },
-  {
-	"id": "efficiency",
-	"name": "Efficiency",
-	"max_level": 5,
-	"category": "tool",
-	"effects": {
-	  "mining_speed_multiplier_per_level": 0.3
-	}
-  },
-  {
-	"id": "unbreaking",
-	"name": "Unbreaking",
-	"max_level": 3,
-	"category": "universal",
-	"effects": {
-	  "durability_multiplier": {
-		"level_1": 2,
-		"level_2": 3,
-		"level_3": 4
-	  }
-	}
-  },
-  {
-	"id": "power",
-	"name": "Power",
-	"max_level": 5,
-	"category": "bow",
-	"effects": {
-	  "arrow_damage_bonus_per_level": 1.5
-	}
-  }
+  {"id":"protection","name":"Protection","max_level":4,"category":"armor","effects":{"damage_reduction_percent_per_level":4}},
+  {"id":"fire_protection","name":"Fire Protection","max_level":4,"category":"armor","effects":{"fire_reduction_percent_per_level":8}},
+  {"id":"feather_falling","name":"Feather Falling","max_level":4,"category":"boots","effects":{"fall_reduction_percent_per_level":12}},
+  {"id":"blast_protection","name":"Blast Protection","max_level":4,"category":"armor","effects":{"blast_reduction_percent_per_level":8}},
+  {"id":"projectile_protection","name":"Projectile Protection","max_level":4,"category":"armor","effects":{"projectile_reduction_percent_per_level":8}},
+  {"id":"respiration","name":"Respiration","max_level":3,"category":"helmet","effects":{"air_seconds_per_level":15}},
+  {"id":"aqua_affinity","name":"Aqua Affinity","max_level":1,"category":"helmet","effects":{"underwater_mining":true}},
+  {"id":"thorns","name":"Thorns","max_level":3,"category":"armor","effects":{"reflect_chance_per_level":0.15}},
+  {"id":"sharpness","name":"Sharpness","max_level":5,"category":"weapon","effects":{"damage_bonus_per_level":1.25}},
+  {"id":"smite","name":"Smite","max_level":5,"category":"weapon","effects":{"undead_bonus_per_level":2.5}},
+  {"id":"bane_of_arthropods","name":"Bane of Arthropods","max_level":5,"category":"weapon","effects":{"arthropod_bonus_per_level":2.5}},
+  {"id":"knockback","name":"Knockback","max_level":2,"category":"weapon","effects":{"knockback_per_level":0.5}},
+  {"id":"fire_aspect","name":"Fire Aspect","max_level":2,"category":"weapon","effects":{"burn_seconds_per_level":4}},
+  {"id":"looting","name":"Looting","max_level":3,"category":"weapon","effects":{"loot_bonus_per_level":1}},
+  {"id":"efficiency","name":"Efficiency","max_level":5,"category":"tool","effects":{"mining_speed_multiplier_per_level":0.3}},
+  {"id":"silk_touch","name":"Silk Touch","max_level":1,"category":"tool","effects":{"silk_touch":true}},
+  {"id":"unbreaking","name":"Unbreaking","max_level":3,"category":"universal","effects":{"durability_multiplier":{"level_1":2,"level_2":3,"level_3":4}}},
+  {"id":"fortune","name":"Fortune","max_level":3,"category":"tool","effects":{"drop_bonus_per_level":1}},
+  {"id":"power","name":"Power","max_level":5,"category":"bow","effects":{"arrow_damage_bonus_per_level":1.5}},
+  {"id":"punch","name":"Punch","max_level":2,"category":"bow","effects":{"arrow_knockback_per_level":1}},
+  {"id":"flame","name":"Flame","max_level":1,"category":"bow","effects":{"flame_arrows":true}},
+  {"id":"infinity","name":"Infinity","max_level":1,"category":"bow","effects":{"infinity":true}}
 ]

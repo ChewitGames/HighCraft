@@ -58,13 +58,23 @@ func get_texture(id: String) -> Texture2D:
 	if _cache.has(id):
 		return _cache[id]
 	var tex: Texture2D = null
+	if has_node("/root/Addons"):
+		var external_path := str(get_node("/root/Addons").find_texture(id))
+		if external_path != "":
+			var image := Image.new()
+			if image.load(external_path) == OK:
+				tex = ImageTexture.create_from_image(image)
 	var path = TEX_DIR + id + ".png"
-	if ResourceLoader.exists(path):
+	if tex == null and ResourceLoader.exists(path):
 		tex = load(path)
 	if tex == null:
 		tex = _generate(id)
 	_cache[id] = tex
 	return tex
+
+
+func clear_cache() -> void:
+	_cache.clear()
 
 
 func _base_color(id: String) -> Color:

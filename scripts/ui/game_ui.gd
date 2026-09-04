@@ -35,12 +35,19 @@ var _anvil_input1: Dictionary
 var _anvil_input2: Dictionary
 var _anvil_result: Dictionary
 var _anvil_text_edit: LineEdit
+var _enchant_panel: Panel
+var _enchant_item: Dictionary = {}   # slot widget + item
+var _enchant_lapis: Dictionary = {}
+var _enchant_offers: Array = []
+var _enchant_offer_btns: Array = []
+var _enchant_label: Label
 var _hovered_slot: Dictionary = {} # aktuell gehovter Slot
 const SLOT = 50
 # Split-screen: scale full-size UI into each player's viewport
 var _ui_scale: float = 1.0
 var _is_split: bool = false
 var _split_index: int = 0
+var _input_device_index: int = 0
 var _split_rect: Rect2 = Rect2()
 const ARMOR_SLOT_NAMES = ["helmet", "chestplate", "leggings", "boots"]
 var player
@@ -54,6 +61,8 @@ var _hotbar_name_timer: float = 0.0
 var _hearts: Array = []
 var _hunger: Array = []
 var _armor_bar: Array = []
+var _air_bar: Array = []
+var _air_row: HBoxContainer
 var _stats_box: VBoxContainer
 var _panel: Panel
 var _bag_widgets: Array = [] # [{w, bag, index}]
@@ -96,6 +105,8 @@ var _creative_items: Array = [] # alle Items die aktuell angezeigt werden
 var _osk: OnScreenKeyboard = null
 var _osk_open: bool = false
 var _osk_ignore_focus: bool = false
+var _hud_refresh_t: float = 0.0
+var _inventory_refresh_t: float = 0.0
 
 func _is_click(event: InputEvent) -> bool:
 	return event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
@@ -134,6 +145,8 @@ func _build_cursor() -> void:
 	_cursor_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_cursor_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_cursor_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cursor_icon.z_index = 300
+	_cursor_icon.z_as_relative = false
 	_cursor_icon.visible = false
 	add_child(_cursor_icon)
 func setup_split(p_player, p_interactor, rect: Rect2 = Rect2(), split_index: int = 0) -> void:
@@ -141,6 +154,7 @@ func setup_split(p_player, p_interactor, rect: Rect2 = Rect2(), split_index: int
 	# inventory (1100x620) must be scaled down so it fits the half/quarter screen.
 	_is_split = true
 	_split_index = split_index
+	_input_device_index = split_index
 	_split_rect = rect
 	if p_player != null:
 		if "split_index" in p_player:
@@ -197,7 +211,7 @@ var is_split: bool:
 
 func _joy_device() -> int:
 	# Same mapping as Player / BlockInteractor: split slot == joypad index
-	return maxi(_split_index, 0)
+	return _input_device_index if _is_split else 0
 
 
 func _event_for_this_player(event: InputEvent) -> bool:
@@ -240,7 +254,7 @@ func setup(p_player, p_interactor) -> void:
 	_build_coords_label()
 	_build_pause()
 	_build_chat()
-	
+	_build_effect_hud()
 	
 	if player != null and player.game_mode == GameSettings.GameMode.CREATIVE:
 		if _creative_grid != null and _creative_grid.get_child_count() == 0:
@@ -375,16 +389,28 @@ func _show_item_tooltip(item_id: String, mouse_pos: Vector2) -> void:
 		if item != null:
 			name = item.get("name", item_id)
 	
-	var ench_text = ""
+	var extra_lines: PackedStringArray = []
 	if stack_ref != null and not stack_ref.enchantments.is_empty():
-		var names = stack_ref.get_enchantment_names()
-		ench_text = " §" + ", ".join(names) # § als Trennzeichen (oder " +")
-
+		for n in stack_ref.get_enchantment_names():
+			extra_lines.append(str(n))
+	var it = Registry.get_item(item_id)
+	if it != null and str(it.get("type", "")) == "potion":
+		for eff in it.get("effects", []):
+			var t = str(eff.get("type", "")).replace("_", " ").capitalize()
+			var d = int(eff.get("duration", 0))
+			var a = int(eff.get("amplifier", 0))
+			extra_lines.append("%s %s (%ds)" % [t, Registry.roman_level(a + 1) if Registry.has_method("roman_level") else str(a + 1), d])
+	if item_id.begins_with("enchanted_book_") and Registry.enchantments.has(item_id.replace("enchanted_book_", "")):
+		var eid = item_id.replace("enchanted_book_", "")
+		extra_lines.append(Registry.enchantment_display(eid, int(Registry.enchantments[eid].get("max_level", 1))))
 	var count_text = ""
 	if stack_ref != null and stack_ref.count > 1:
 		count_text = " x" + str(stack_ref.count)
-
-	_tooltip_label.text = name + count_text + ench_text
+	var body = name + count_text
+	if extra_lines.size() > 0:
+		body += "\n" + "\n".join(extra_lines)
+	_tooltip_label.add_theme_color_override("font_color", Color(0.78, 0.55, 1.0) if extra_lines.size() > 0 else Color(1, 1, 1))
+	_tooltip_label.text = body
 	_tooltip_label.position = mouse_pos + Vector2(16, -8)
 	_tooltip_label.visible = true
 
@@ -494,7 +520,7 @@ func _build_pause() -> void:
 	}
 	_pause_panel = Panel.new()
 	_pause_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_pause_panel.custom_minimum_size = Vector2(320, 300)
+	_pause_panel.custom_minimum_size = Vector2(340, 420)
 	_pause_panel.position = -_pause_panel.custom_minimum_size / 2.0
 	_pause_panel.visible = false
 	add_child(_pause_panel)
@@ -538,19 +564,62 @@ func _build_pause() -> void:
 	)
 	vb.add_child(skin_btn)
 
+	var recipe_btn = Button.new()
+	recipe_btn.text = "Recipe Book"
+	recipe_btn.pressed.connect(func():
+		_close_pause()
+		open_recipe_book()
+	)
+	vb.add_child(recipe_btn)
+
+	var ench_btn = Button.new()
+	ench_btn.text = "Enchanting Guide"
+	ench_btn.pressed.connect(func():
+		_close_pause()
+		open_enchant()
+	)
+	vb.add_child(ench_btn)
+
+	var ach_btn = Button.new()
+	ach_btn.text = "Achievements"
+	ach_btn.pressed.connect(func():
+		_close_pause()
+		_show_achievements()
+	)
+	vb.add_child(ach_btn)
+
 	var quit = Button.new()
-	quit.text = "Quit Game"
-	quit.pressed.connect(get_tree().quit)
+	quit.text = "Leave Player" if _is_split else ("Leave Server" if _online_session_active() else "Exit to Menu")
+	quit.pressed.connect(_leave_current_player)
 	vb.add_child(quit)
 	_pause_resume_btn.focus_mode = Control.FOCUS_ALL
 	_pause_mode_btn.focus_mode = Control.FOCUS_ALL
 	_pause_diff_btn.focus_mode = Control.FOCUS_ALL
 	save_btn.focus_mode = Control.FOCUS_ALL
 	skin_btn.focus_mode = Control.FOCUS_ALL
+	recipe_btn.focus_mode = Control.FOCUS_ALL
+	ench_btn.focus_mode = Control.FOCUS_ALL
+	ach_btn.focus_mode = Control.FOCUS_ALL
 	quit.focus_mode = Control.FOCUS_ALL
 func _save_world() -> void:
 	if interactor != null and interactor.game != null:
 		_chat_msg.text = "Saved." if interactor.game.save_now() else "Save failed."
+
+
+func _online_session_active() -> bool:
+	return multiplayer != null and multiplayer.multiplayer_peer != null
+
+
+func _leave_current_player() -> void:
+	_close_pause()
+	var game_node = game
+	if game_node == null and interactor != null:
+		game_node = interactor.game
+	if game_node != null and game_node.has_method("request_player_leave"):
+		game_node.request_player_leave(player)
+		return
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
 func _build_chat() -> void:
 	
 	_focus_bag = "main"
@@ -673,6 +742,20 @@ func _build_stats() -> void:
 	_hearts = _make_bar(10, _stats_box)
 	_hunger = _make_bar(10, _stats_box)
 	_armor_bar = _make_bar(10, _stats_box)
+	_air_row = HBoxContainer.new()
+	_air_row.add_theme_constant_override("separation", 2)
+	_stats_box.add_child(_air_row)
+	var air_label := Label.new()
+	air_label.text = "AIR"
+	air_label.custom_minimum_size = Vector2(34, 16)
+	air_label.add_theme_font_size_override("font_size", 11)
+	_air_row.add_child(air_label)
+	for i in range(10):
+		var bubble := ColorRect.new()
+		bubble.custom_minimum_size = Vector2(14, 14)
+		_air_row.add_child(bubble)
+		_air_bar.append(bubble)
+	_air_row.visible = false
 func _build_hotbar() -> void:
 	var row = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 4)
@@ -853,7 +936,7 @@ func _build_creative_inventory() -> void:
 
 	if ench_data != null:
 		for ench_id in ench_data.keys():
-			add_item.call(ench_id)
+			add_item.call("enchanted_book_" + str(ench_id))
 
 	# === 4. Potions (aus potions.json) ===
 	var pot_data = null
@@ -988,7 +1071,7 @@ func _drop_hovered_item(drop_all: bool = false) -> void:
 	if stack.count <= 0:
 		arr[index] = null
 
-	Audio.play("pop", -8.0)
+	Audio.play("player_item_drop", -8.0)
 	
 func _register_bag_slot(widget: Dictionary, bag: String, index: int) -> void:
 	_bag_widgets.append({"w": widget, "bag": bag, "index": index})
@@ -1079,6 +1162,17 @@ func _get_focusable_slots() -> Array:
 			for i in range(9):
 				slots.append({"bag": "hotbar", "index": i, "x": i, "y": 7})
 
+		"enchant":
+			slots.append({"bag": "enchant", "index": 0, "x": 10, "y": 0})
+			slots.append({"bag": "enchant", "index": 1, "x": 11, "y": 0})
+			var ench_buttons = _get_enchant_buttons()
+			for i in range(ench_buttons.size()):
+				slots.append({"kind": "button", "button": ench_buttons[i], "x": 10 + i, "y": 2})
+			for i in range(27):
+				slots.append({"bag": "main", "index": i, "x": i % 9, "y": 4 + i / 9})
+			for i in range(9):
+				slots.append({"bag": "hotbar", "index": i, "x": i, "y": 7})
+
 		"dispenser":
 			for i in range(9):
 				slots.append({"bag": "dispenser", "index": i, "x": 10 + (i % 3), "y": i / 3})
@@ -1132,6 +1226,13 @@ func _get_anvil_buttons() -> Array:
 	return buttons
 
 
+func _get_enchant_buttons() -> Array:
+	var buttons: Array = []
+	if _enchant_panel != null and is_instance_valid(_enchant_panel):
+		_collect_buttons(_enchant_panel, buttons)
+	return buttons
+
+
 func _get_dispenser_buttons() -> Array:
 	var buttons: Array = []
 	if _dispenser_panel != null and is_instance_valid(_dispenser_panel):
@@ -1155,36 +1256,6 @@ func _move_focus(dx: int, dy: int) -> void:
 		if _focus_target_matches(targets[i]):
 			current_index = i
 			break
-
-	# Creative / filtered lists: step linearly through targets with same bag
-	# so search results (few visible items) are always reachable.
-	var cur_bag = str(targets[current_index].get("bag", ""))
-	if cur_bag == "creative" and (dx != 0 or dy != 0):
-		var same_bag: Array = []
-		for i in range(targets.size()):
-			if str(targets[i].get("bag", "")) == "creative":
-				same_bag.append(i)
-		if same_bag.size() > 1:
-			var pos_in = same_bag.find(current_index)
-			if pos_in < 0:
-				pos_in = 0
-			var step = 0
-			if dx > 0 or dy > 0:
-				step = 1
-			elif dx < 0 or dy < 0:
-				step = -1
-			if step != 0:
-				var next_pos = posmod(pos_in + step, same_bag.size())
-				current_index = same_bag[next_pos]
-				var next_c: Dictionary = targets[current_index]
-				_controller_focus_kind = "slot"
-				_controller_focus_button = null
-				_focus_bag = next_c["bag"]
-				_focus_index = int(next_c["index"])
-				_hovered_slot = {"bag": _focus_bag, "index": _focus_index}
-				_update_focus_visual()
-				_position_focus_cursor()
-				return
 
 	var current: Dictionary = targets[current_index]
 	var cx = int(current.get("x", 0))
@@ -1215,22 +1286,11 @@ func _move_focus(dx: int, dy: int) -> void:
 		candidates.append([same_axis, primary, secondary, i])
 
 	if candidates.is_empty():
-		var best = -1
-		var best_score = INF
-		for i in range(targets.size()):
-			if i == current_index:
-				continue
-			var t2: Dictionary = targets[i]
-			var tx2 = int(t2.get("x", 0))
-			var ty2 = int(t2.get("y", 0))
-			var primary_delta = abs(tx2 - cx) if dx != 0 else abs(ty2 - cy)
-			var cross_delta = abs(ty2 - cy) if dx != 0 else abs(tx2 - cx)
-			var score = float(primary_delta * 100 + cross_delta)
-			if score < best_score:
-				best_score = score
-				best = i
-		if best >= 0:
-			current_index = best
+		# Reaching the edge of one slot grid automatically moves to the next UI
+		# zone. LB/RB remain optional shortcuts, never a requirement.
+		_cycle_focus_zone(1 if dx > 0 or dy > 0 else -1)
+		_position_focus_cursor()
+		return
 	else:
 		candidates.sort_custom(func(a, b):
 			if a[0] != b[0]:
@@ -1273,7 +1333,7 @@ func _ensure_focus_cursor() -> void:
 	_focus_cursor.z_as_relative = false
 	_focus_cursor.visible = false
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(1.0, 0.95, 0.2, 0.18)
+	sb.bg_color = Color(0, 0, 0, 0)
 	sb.border_color = Color(1.0, 0.92, 0.1, 1.0)
 	sb.border_width_left = 3
 	sb.border_width_top = 3
@@ -1307,6 +1367,11 @@ func _get_focused_panel() -> Control:
 			if _focus_index >= 0 and _focus_index < 3 and _furnace_widgets.has(keys[_focus_index]):
 				return _furnace_widgets[keys[_focus_index]]["panel"]
 		"anvil":
+			if _focus_bag == "enchant":
+				if _focus_index == 0 and _enchant_item is Dictionary and _enchant_item.has("panel"):
+					return _enchant_item["panel"]
+				if _focus_index == 1 and _enchant_lapis is Dictionary and _enchant_lapis.has("panel"):
+					return _enchant_lapis["panel"]
 			if _focus_index == 0 and _anvil_input1.has("panel"):
 				return _anvil_input1["panel"]
 			if _focus_index == 1 and _anvil_input2.has("panel"):
@@ -1341,8 +1406,8 @@ func _position_focus_cursor() -> void:
 	_focus_cursor.visible = true
 	_focus_cursor.z_index = 250
 	_focus_cursor.move_to_front()
-	# Same yellow amplify as inventory (readable on dark chest panel)
-	panel.self_modulate = Color(1.45, 1.4, 0.55)
+	# The separate border is the focus effect. Tinting the whole slot also tints
+	# enchanted item glints and made them look as if they were behind the UI.
 
 
 func _update_focus_visual() -> void:
@@ -1400,6 +1465,10 @@ func _update_focus_visual() -> void:
 		_anvil_input2["panel"].self_modulate = Color(1.4, 1.4, 0.6) if (_focus_bag == "anvil" and _focus_index == 1) else Color(1, 1, 1)
 	if _anvil_result.has("panel"):
 		_anvil_result["panel"].self_modulate = Color(1.4, 1.4, 0.6) if (_focus_bag == "anvil" and _focus_index == 2) else Color(1, 1, 1)
+	if _enchant_item is Dictionary and _enchant_item.has("panel"):
+		_enchant_item["panel"].self_modulate = Color(1, 1, 1)
+	if _enchant_lapis is Dictionary and _enchant_lapis.has("panel"):
+		_enchant_lapis["panel"].self_modulate = Color(1, 1, 1)
 
 	# Dispenser
 	for i in range(_dispenser_widgets.size()):
@@ -1475,7 +1544,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if k == KEY_E:
 			if _mode == "closed":
 				open_inventory()
-			elif _mode in ["inventory", "table", "furnace", "trade", "anvil", "dispenser", "chest"]:
+			elif _mode in ["inventory", "table", "furnace", "trade", "anvil", "dispenser", "chest", "enchant"]:
 				_close()
 
 		elif k == KEY_ESCAPE:
@@ -1489,7 +1558,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_close_skin_selector(true)
 			elif _mode == "avatar":
 				pass
-			elif _mode in ["inventory", "table", "furnace", "trade", "anvil", "dispenser", "chest"]:
+			elif _mode in ["inventory", "table", "furnace", "trade", "anvil", "dispenser", "chest", "enchant"]:
 				_close()
 
 		elif k == KEY_T:
@@ -1539,7 +1608,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				elif _mode == "avatar":
 					# AvatarEditor handles its own input
 					pass
-				elif _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "trade", "chest"]:
+				elif _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "trade", "chest", "enchant"]:
 					if HCPad.is_nav_axis_x(ax):
 						_move_focus(1 if val > 0.0 else -1, 0)
 						_controller_nav_cooldown = CONTROLLER_NAV_DELAY
@@ -1646,7 +1715,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_on_chat_submit(_chat_edit.text)
 			if get_viewport(): get_viewport().set_input_as_handled()
 			return
-		if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "trade", "command_block", "chest"]:
+		if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "trade", "command_block", "chest", "enchant"]:
 			_controller_activate_slot(false)
 			if get_viewport(): get_viewport().set_input_as_handled()
 			return
@@ -1674,7 +1743,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# --- X / Square → Rechtsklick auf Slot ---
 	if HCPad.is_attack_button(btn):
-		if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "chest"]:
+		if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "chest", "enchant"]:
 			_controller_activate_slot(true)
 			get_viewport().set_input_as_handled()
 			return
@@ -1705,10 +1774,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _focus_zones_for_mode() -> Array:
-	# Feste, garantierte Reihenfolge der "Zonen" pro UI-Modus. Wird von LB/RB
-	# benutzt, damit man zuverlässig zwischen Hauptinventar und dem
-	# jeweiligen Zusatzpanel (Dispenser/Amboss/Kreativ-Grid/Ofen) wechseln
-	# kann, unabhängig von der 2D-Stick-Nachbarschaftslogik.
+	# Guaranteed zone order. Normal D-Pad/stick navigation changes zones at
+	# grid edges; LB/RB merely provide an optional shortcut.
 	match _mode:
 		"inventory", "table":
 			var z = ["main", "hotbar", "armor"]
@@ -1719,6 +1786,8 @@ func _focus_zones_for_mode() -> Array:
 			return ["furnace", "main", "hotbar"]
 		"anvil":
 			return ["anvil", "main", "hotbar"]
+		"enchant":
+			return ["enchant", "main", "hotbar"]
 		"dispenser":
 			return ["dispenser", "main", "hotbar"]
 		"chest":
@@ -1798,6 +1867,13 @@ func _controller_activate_slot(is_right: bool) -> void:
 			fake.pressed = true
 			_on_anvil_slot_input(fake, which)
 
+		"enchant":
+			var which_e = "item" if index == 0 else "lapis"
+			var fake_e = InputEventMouseButton.new()
+			fake_e.button_index = MOUSE_BUTTON_LEFT
+			fake_e.pressed = true
+			_on_enchant_slot_input(fake_e, which_e)
+
 		"dispenser":
 			if _active_dispenser == null:
 				return
@@ -1861,6 +1937,7 @@ func open_pause() -> void:
 		return
 
 	_mode = "pause"
+	player.set_meta("ui_input_locked", true)
 	_pause_panel.visible = true
 	_pause_panel.move_to_front()
 	_set_ui_mouse_mode(true)
@@ -1981,6 +2058,8 @@ func _close_pause() -> void:
 	if fo != null:
 		fo.release_focus()
 	_mode = "closed"
+	if player != null:
+		player.set_meta("ui_input_locked", false)
 	_controller_focus_kind = "slot"
 	_controller_focus_button = null
 	_set_ui_mouse_mode(false)
@@ -2218,6 +2297,7 @@ func _set_controller_button_focus(button: BaseButton) -> void:
 
 
 func open_inventory() -> void:
+	_close_enchant_panel()
 	_open("inventory", 2, null)
 	if _input_device == "controller":
 		_set_controller_slot_focus("main", 0)
@@ -2231,6 +2311,8 @@ func open_furnace(furn) -> void:
 	_active_furnace = furn
 	_open("furnace", 0, furn)
 func _open(mode: String, craft_size: int, furn) -> void:
+	if _mode == "closed":
+		Audio.play("player_inventory_open", -8.0)
 	_mode = mode
 	if _panel != null:
 		_panel.visible = true
@@ -2251,6 +2333,13 @@ func _open(mode: String, craft_size: int, furn) -> void:
 	if _input_device == "controller":
 		_set_controller_slot_focus("main", 0)
 func _close() -> void:
+	if _mode == "chest":
+		Audio.play("chest_close")
+	elif _mode != "closed":
+		Audio.play("player_inventory_close", -8.0)
+	if _mode == "enchant":
+		_close_enchant_panel()
+
 	_close_osk(false)
 	_hide_item_tooltip()
 	# Craft + Cursor Items zurück ins Inventar geben
@@ -2384,6 +2473,8 @@ func _refresh_anvil_slots() -> void:
 		
 func open_trades(villager) -> void:
 	_trade_villager = villager
+	if villager != null and villager.has_method("play_mob_sound"):
+		villager.play_mob_sound("idle")
 	_mode = "trade"
 	if _is_split:
 		_input_device = "controller"
@@ -2413,6 +2504,8 @@ func open_trades(villager) -> void:
 	vb.add_child(title)
 
 	if not villager.can_trade():
+		if villager.has_method("play_mob_sound"):
+			villager.play_mob_sound("no")
 		var l = Label.new()
 		l.text = "This villager is upset and won't trade."
 		vb.add_child(l)
@@ -2446,12 +2539,16 @@ func _do_trade(tr: Dictionary) -> void:
 		return
 	for c in tr["cost"]:
 		if not player.inventory.has(c[0], int(c[1])):
-			Audio.play("click", -12.0)
+			if _trade_villager.has_method("play_mob_sound"):
+				_trade_villager.play_mob_sound("no")
+			Audio.play("ui_error", -12.0)
 			return
 	for c in tr["cost"]:
 		player.inventory.remove(c[0], int(c[1]))
-		player.inventory.add(tr["reward"][0], int(tr["reward"][1]))
-		Audio.play("click")
+	player.inventory.add(tr["reward"][0], int(tr["reward"][1]))
+	if _trade_villager.has_method("play_mob_sound"):
+		_trade_villager.play_mob_sound("yes")
+	Audio.play("ui_click")
 func _rebuild_craft(size: int) -> void:
 	if _craft_container == null:
 		return
@@ -2712,6 +2809,8 @@ func open_skin_selector() -> void:
 
 	# Critical: leave game mode so controller no longer drives gameplay
 	_mode = "skin"
+	if player != null:
+		player.set_meta("ui_input_locked", true)
 	_set_ui_mouse_mode(true)
 	if is_inside_tree() and get_viewport() != null:
 		get_viewport().gui_disable_input = false
@@ -2864,6 +2963,8 @@ func _close_skin_selector(capture_mouse: bool = true) -> void:
 	_skin_buttons.clear()
 	_skin_focus_idx = 0
 	_mode = "closed"
+	if player != null:
+		player.set_meta("ui_input_locked", false)
 	if capture_mouse:
 		_set_ui_mouse_mode(false)
 
@@ -2871,8 +2972,9 @@ func _close_skin_selector(capture_mouse: bool = true) -> void:
 func _on_skin_selected(skin_name: String) -> void:
 	if player == null:
 		return
-	player.current_skin_name = skin_name
-	player._build_player_model()
+	player.set_skin(skin_name)
+	if game != null and game.has_method("notify_local_skin_changed"):
+		game.notify_local_skin_changed(player)
 	_close_skin_selector(true)
 	Audio.play("click")
 
@@ -2880,6 +2982,8 @@ func _on_skin_selected(skin_name: String) -> void:
 func _open_avatar_editor_from_ui() -> void:
 	# Leave game controls; avatar editor owns controller input
 	_mode = "avatar"
+	if player != null:
+		player.set_meta("ui_input_locked", true)
 	_set_ui_mouse_mode(true)
 	if is_inside_tree() and get_viewport() != null:
 		get_viewport().gui_disable_input = false
@@ -2896,14 +3000,17 @@ func _open_avatar_editor_from_ui() -> void:
 		if is_instance_valid(layer):
 			layer.queue_free()
 		_mode = "closed"
+		if player != null:
+			player.set_meta("ui_input_locked", false)
 		_set_ui_mouse_mode(false)
 	)
 
 	editor.skin_saved.connect(func(data):
 		print("Skin gespeichert: ", data["name"])
 		if player:
-			player.current_skin_name = data["name"].replace(" ", "_").to_lower()
-			player._build_player_model()
+			player.set_skin(data["name"].replace(" ", "_").to_lower(), data)
+			if game != null and game.has_method("notify_local_skin_changed"):
+				game.notify_local_skin_changed(player)
 	)
 
 func show_boss_bar(boss_name: String, max_health: float) -> void:
@@ -2950,23 +3057,42 @@ func _process(_delta: float) -> void:
 	# Kein DisplayServer.warp_mouse mehr – das hat Hover-Events ausgelöst
 	# und den Fokus ständig überschrieben. Navigation läuft rein über _focus_*.
 
-	_refresh_hotbar(_delta)
-	_refresh_stats()
-	_refresh_info()
+	# Slot texture/name/durability refreshes are UI work, not gameplay work.
+	# At 60+ FPS doing all of them every frame is wasteful and multiplies with
+	# every split-screen player. 20 Hz remains visually immediate.
+	_hud_refresh_t -= _delta
+	if _hud_refresh_t <= 0.0:
+		var hud_step := 0.05
+		_hud_refresh_t = hud_step
+		_refresh_hotbar(hud_step)
+		_refresh_stats()
+		_refresh_info()
+		_refresh_effect_hud()
 	if _coords_visible:
 		_update_coords()
 
-	if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "chest", "trade"]:
-		_refresh_open()
+	# Cursor icon follows mouse whenever we hold a stack (inventory, enchant, anvil, ...)
+	if _cursor != null:
 		_refresh_cursor()
-		if _mode == "anvil":
-			_refresh_anvil_slots()
-		if _mode == "dispenser":
-			_refresh_dispenser_slots()
-		if _mode == "chest" and has_method("_refresh_chest_slots"):
-			_refresh_chest_slots()
+	elif _cursor_icon != null:
+		_cursor_icon.visible = false
+
+	if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "chest", "trade", "enchant"]:
+		_inventory_refresh_t -= _delta
+		if _inventory_refresh_t <= 0.0:
+			_inventory_refresh_t = 0.05
+			_refresh_open()
+			if _mode == "anvil":
+				_refresh_anvil_slots()
+			if _mode == "enchant":
+				_refresh_enchant_slots()
+			if _mode == "dispenser":
+				_refresh_dispenser_slots()
+			if _mode == "chest" and has_method("_refresh_chest_slots"):
+				_refresh_chest_slots()
 		if _input_device == "controller":
 			_position_focus_cursor()
+			_update_focus_visual()
 	else:
 		if _focus_cursor != null:
 			_focus_cursor.visible = false
@@ -3322,24 +3448,14 @@ func _refresh_slot(widget: Dictionary, stack) -> void:
 
 	widget["icon"].texture = Textures.get_texture(stack.item_id)
 
-	# Lila Glow bei verzauberten Items
-	if not stack.enchantments.is_empty():
-		widget["icon"].self_modulate = Color(0.85, 0.7, 1.0)
+	# Purple glint on enchanted items / enchanted books
+	var enchanted = not stack.enchantments.is_empty() or str(stack.item_id).begins_with("enchanted_book")
+	if enchanted:
+		widget["icon"].self_modulate = Color(0.72, 0.45, 1.0)
 	else:
 		widget["icon"].self_modulate = Color(1, 1, 1)
 
-	# Name (Custom Name > Enchant-Kürzel > Count)
-	var display_name = ""
-	if stack.custom_name.strip_edges() != "":
-		display_name = stack.custom_name
-	elif not stack.enchantments.is_empty():
-		var names = stack.get_enchantment_names()
-		# nur erste Enchant kurz anzeigen, sonst wird's zu voll im Slot
-		display_name = names[0] if names.size() == 1 else names[0] + "+"
-
-	if display_name != "":
-		widget["label"].text = display_name
-	elif stack.count > 1:
+	if stack.count > 1:
 		widget["label"].text = str(stack.count)
 	else:
 		widget["label"].text = ""
@@ -3429,23 +3545,28 @@ func _refresh_open() -> void:
 	# WICHTIG: Fokus NICHT hier zurücksetzen – das hat die D-Pad-Navigation zerstört
 func _refresh_cursor() -> void:
 	if _cursor_icon == null:
+		_build_cursor()
+	if _cursor_icon == null:
 		return
 	if _cursor == null:
 		_cursor_icon.visible = false
-	else:
-		_cursor_icon.visible = true
-		_cursor_icon.texture = Textures.get_texture(_cursor.item_id)
-		if _input_device == "controller":
-			# Item-Cursor am Fokus-Slot anzeigen (nicht an der echten Maus)
-			var panel = _get_focused_panel()
-			if panel != null and is_instance_valid(panel):
-				var gp = panel.get_global_rect()
-				_cursor_icon.global_position = gp.position + Vector2(4, 4)
-			else:
-				_cursor_icon.position = get_viewport().get_mouse_position() - Vector2(SLOT, SLOT) / 2.0
+		return
+	_cursor_icon.visible = true
+	_cursor_icon.z_index = 300
+	_cursor_icon.z_as_relative = false
+	_cursor_icon.move_to_front()
+	_cursor_icon.texture = Textures.get_texture(str(_cursor.item_id))
+	var mp = get_viewport().get_mouse_position()
+	if _input_device == "controller":
+		var panel = _get_focused_panel() if has_method("_get_focused_panel") else null
+		if panel != null and is_instance_valid(panel):
+			var gp = panel.get_global_rect()
+			_cursor_icon.global_position = gp.position + Vector2(4, 4)
 		else:
-			_cursor_icon.position = get_viewport().get_mouse_position() - Vector2(SLOT, SLOT) / 2.0
-		_cursor_icon.move_to_front()
+			_cursor_icon.global_position = mp - Vector2(SLOT, SLOT) / 2.0
+	else:
+		_cursor_icon.global_position = mp - Vector2(SLOT, SLOT) / 2.0
+	_cursor_icon.move_to_front()
 func _icon_state(value: float, idx: int) -> int:
 	var threshold = (idx + 1) * 2
 
@@ -3475,6 +3596,13 @@ func _refresh_stats() -> void:
 		_hearts[i].color = [empty, half_heart, full_heart][_icon_state(player.health, i)]
 		_hunger[i].color = [empty, half_hunger, full_hunger][_icon_state(player.hunger, i)]
 		_armor_bar[i].color = full_armor if _icon_state(ap, i) > 0 else empty
+	if _air_row != null:
+		var air := float(player.get("_air"))
+		var max_air := maxf(float(player.get("_max_air")), 0.001)
+		_air_row.visible = air < max_air - 0.01
+		var bubbles := ceili(clampf(air / max_air, 0.0, 1.0) * 10.0)
+		for i in range(_air_bar.size()):
+			_air_bar[i].color = Color(0.25, 0.72, 1.0, 0.95) if i < bubbles else Color(0.08, 0.18, 0.24, 0.75)
 		
 
 
@@ -3827,3 +3955,473 @@ func _refresh_chest_slots() -> void:
 	for i in range(mini(27, _chest_widgets.size())):
 		var stack = _active_chest[i] if i < _active_chest.size() else null
 		_refresh_slot(_chest_widgets[i], stack)
+
+
+func open_enchant() -> void:
+	# Real inventory UI (same system as anvil/chest) — NOT a separate hotbar-only panel
+	_mode = "enchant"
+	if _is_split:
+		_input_device = "controller"
+	_set_ui_mouse_mode(true)
+	get_viewport().gui_disable_input = false
+	if _creative_container:
+		_creative_container.visible = false
+	# Show normal inventory so player can pick Lapis / tools with UI cursor
+	if _panel:
+		_panel.visible = true
+	_close_enchant_panel()
+	_create_enchant_ui()
+	if _enchant_panel:
+		_enchant_panel.visible = true
+		_enchant_panel.set_anchors_preset(Control.PRESET_CENTER)
+		_enchant_panel.offset_left = -220
+		_enchant_panel.offset_right = 220
+		_enchant_panel.offset_top = -340
+		_enchant_panel.offset_bottom = -40
+		_enchant_panel.custom_minimum_size = Vector2(440, 300)
+		_enchant_panel.z_index = 40
+		_enchant_panel.move_to_front()
+	_refresh_open()
+	_refresh_enchant_slots()
+	_update_enchant_offers()
+	_refresh_cursor()
+	# Always prepare controller focus (works as soon as a pad is used)
+	_set_controller_slot_focus("enchant", 0)
+	_update_focus_visual()
+	_position_focus_cursor()
+	print("[GameUI] enchant open, controller focus on enchant slots")
+
+
+func _close_enchant_panel() -> void:
+	if _enchant_panel != null and is_instance_valid(_enchant_panel):
+		# Return items from slots to inventory
+		_return_enchant_slots()
+		_enchant_panel.queue_free()
+	_enchant_panel = null
+	_enchant_item = {}
+	_enchant_lapis = {}
+	_enchant_offers.clear()
+	_enchant_offer_btns.clear()
+	_enchant_label = null
+
+
+func _return_enchant_slots() -> void:
+	for slot in [_enchant_item, _enchant_lapis]:
+		if slot is Dictionary and slot.get("item") != null and player != null and player.inventory != null:
+			var s = slot["item"]
+			player.inventory.add(s.item_id, s.count)
+			slot["item"] = null
+
+
+func _create_enchant_ui() -> void:
+	_enchant_panel = Panel.new()
+	_enchant_panel.name = "EnchantPanel"
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.16, 0.96)
+	style.border_color = Color(0.5, 0.4, 0.75)
+	style.set_border_width_all(2)
+	_enchant_panel.add_theme_stylebox_override("panel", style)
+	add_child(_enchant_panel)
+	if has_method("_register_split_child"):
+		_register_split_child(_enchant_panel)
+
+	var vbox = VBoxContainer.new()
+	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 12
+	vbox.offset_top = 10
+	vbox.offset_right = -12
+	vbox.offset_bottom = -10
+	vbox.add_theme_constant_override("separation", 8)
+	_enchant_panel.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Enchanting Table"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	vbox.add_child(title)
+
+	var hint = Label.new()
+	hint.text = "Use inventory cursor: put tool in left, Lapis Lazuli in right"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(hint)
+
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 28)
+	vbox.add_child(hbox)
+
+	_enchant_item = _make_anvil_slot()
+	_enchant_item["panel"].gui_input.connect(_on_enchant_slot_input.bind("item"))
+	hbox.add_child(_enchant_item["panel"])
+
+	_enchant_lapis = _make_anvil_slot()
+	_enchant_lapis["panel"].gui_input.connect(_on_enchant_slot_input.bind("lapis"))
+	hbox.add_child(_enchant_lapis["panel"])
+
+	_enchant_label = Label.new()
+	_enchant_label.text = "Place item + Lapis Lazuli"
+	_enchant_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_enchant_label)
+
+	_enchant_offer_btns.clear()
+	for i in range(3):
+		var b = Button.new()
+		b.text = "—"
+		b.focus_mode = Control.FOCUS_ALL
+		b.custom_minimum_size = Vector2(400, 36)
+		b.pressed.connect(_on_enchant_offer.bind(i))
+		vbox.add_child(b)
+		_enchant_offer_btns.append(b)
+
+	var close_btn = Button.new()
+	close_btn.text = "Close"
+	close_btn.focus_mode = Control.FOCUS_ALL
+	close_btn.pressed.connect(func():
+		_close_enchant_panel()
+		_mode = "closed"
+		if _panel:
+			_panel.visible = false
+		_set_ui_mouse_mode(false)
+	)
+	vbox.add_child(close_btn)
+
+
+func _is_lapis_id(id: String) -> bool:
+	var s = id.to_lower()
+	return s == "lapis_lazuli" or s == "lapis" or s.ends_with("lapis_lazuli")
+
+
+func _on_enchant_slot_input(event: InputEvent, which: String) -> void:
+	if not (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT):
+		return
+	var slot_dict: Dictionary = _enchant_item if which == "item" else _enchant_lapis
+	var current = slot_dict.get("item")
+
+	if _cursor == null:
+		if current != null:
+			_cursor = current
+			slot_dict["item"] = null
+	else:
+		# Lapis slot only accepts lapis
+		if which == "lapis" and not _is_lapis_id(str(_cursor.item_id)):
+			return
+		# Item slot: no pure lapis as the enchanted target
+		if which == "item" and _is_lapis_id(str(_cursor.item_id)):
+			return
+		if current == null:
+			slot_dict["item"] = _cursor
+			_cursor = null
+		elif current.stackable_with(_cursor):
+			var move = mini(current.max_stack() - current.count, _cursor.count)
+			current.count += move
+			_cursor.count -= move
+			if _cursor.count <= 0:
+				_cursor = null
+		else:
+			var temp = current
+			slot_dict["item"] = _cursor
+			_cursor = temp
+
+	_refresh_enchant_slots()
+	_update_enchant_offers()
+	_refresh_open()
+	_refresh_cursor()
+
+
+func _refresh_enchant_slots() -> void:
+	if _enchant_item is Dictionary and _enchant_item.has("panel"):
+		_refresh_slot(_enchant_item, _enchant_item.get("item"))
+	if _enchant_lapis is Dictionary and _enchant_lapis.has("panel"):
+		_refresh_slot(_enchant_lapis, _enchant_lapis.get("item"))
+
+
+func _update_enchant_offers() -> void:
+	_enchant_offers.clear()
+	var item = _enchant_item.get("item") if _enchant_item is Dictionary else null
+	var lapis = _enchant_lapis.get("item") if _enchant_lapis is Dictionary else null
+	var lapis_n = 0
+	if lapis != null and _is_lapis_id(str(lapis.item_id)):
+		lapis_n = int(lapis.count)
+
+	if item == null:
+		if _enchant_label:
+			_enchant_label.text = "Place item + Lapis Lazuli"
+		for b in _enchant_offer_btns:
+			b.text = "—"
+			b.disabled = true
+		return
+
+	var pool: Array = []
+	if Registry.enchantments.size() > 0:
+		for eid in Registry.enchantments.keys():
+			pool.append(eid)
+	else:
+		pool = ["sharpness", "protection", "efficiency", "unbreaking"]
+	pool.shuffle()
+	for i in range(mini(3, pool.size())):
+		var eid = pool[i]
+		var max_l = 1
+		if Registry.enchantments.has(eid):
+			max_l = int(Registry.enchantments[eid].get("max_level", 1))
+		var lvl = randi_range(1, maxi(1, max_l))
+		var cost = lvl + i
+		_enchant_offers.append({"id": eid, "level": lvl, "cost": cost})
+
+	for i in range(3):
+		if i < _enchant_offers.size():
+			var o = _enchant_offers[i]
+			_enchant_offer_btns[i].text = "%s %d  (%d Lapis)" % [str(o.id).capitalize(), o.level, o.cost]
+			_enchant_offer_btns[i].disabled = lapis_n < int(o.cost)
+		else:
+			_enchant_offer_btns[i].text = "—"
+			_enchant_offer_btns[i].disabled = true
+	if _enchant_label:
+		_enchant_label.text = "Lapis available: %d" % lapis_n
+
+
+func _on_enchant_offer(i: int) -> void:
+	if i < 0 or i >= _enchant_offers.size():
+		return
+	var item = _enchant_item.get("item") if _enchant_item is Dictionary else null
+	var lapis = _enchant_lapis.get("item") if _enchant_lapis is Dictionary else null
+	if item == null or lapis == null:
+		return
+	var o = _enchant_offers[i]
+	var cost = int(o.cost)
+	if int(lapis.count) < cost:
+		return
+	lapis.count -= cost
+	if lapis.count <= 0:
+		_enchant_lapis["item"] = null
+	if not ("enchantments" in item) or item.enchantments == null:
+		item.enchantments = {}
+	item.enchantments[str(o.id)] = int(o.level)
+	if str(item.item_id) == "book":
+		item.item_id = "enchanted_book"
+	# Enchanted item stays in slot; player can pick it up with cursor
+	_refresh_enchant_slots()
+	_update_enchant_offers()
+	_refresh_open()
+	Audio.play("ui_click")
+
+
+
+func _unhandled_key_recipe(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_R and _mode in ["inventory", "closed", "pause"]:
+		open_recipe_book()
+		get_viewport().set_input_as_handled()
+
+func open_recipe_book() -> void:
+	_mode = "recipe_book"
+	_set_ui_mouse_mode(true)
+	get_viewport().gui_disable_input = false
+	var book = RecipeBookUI.new()
+	book.name = "RecipeBookUI"
+	add_child(book)
+	book.setup()
+	book.closed.connect(func():
+		if is_instance_valid(book):
+			book.queue_free()
+		if _mode == "recipe_book":
+			_mode = "closed"
+			_set_ui_mouse_mode(false)
+	)
+
+
+
+func _show_achievements() -> void:
+	var layer = CanvasLayer.new()
+	layer.layer = 90
+	add_child(layer)
+	var panel = Panel.new()
+	var st = StyleBoxFlat.new()
+	st.bg_color = Color(0.1, 0.12, 0.15, 0.96)
+	st.set_border_width_all(2)
+	st.border_color = Color(0.5, 0.45, 0.2)
+	panel.add_theme_stylebox_override("panel", st)
+	panel.custom_minimum_size = Vector2(400, 360)
+	panel.position = Vector2(180, 100)
+	layer.add_child(panel)
+	var v = VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(v)
+	var title = Label.new()
+	title.text = "Achievements"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	v.add_child(title)
+	var defs = {
+		"open_inventory": "Taking Inventory",
+		"mine_stone": "Stone Age",
+		"plant_wheat": "A Seedy Place",
+		"ride_boat": "Whatever Floats",
+		"ride_minecart": "On A Rail",
+		"kill_boss": "Godslayer",
+	}
+	for k in defs.keys():
+		var l = Label.new()
+		l.text = "• " + defs[k]
+		v.add_child(l)
+	var close = Button.new()
+	close.text = "Close"
+	close.pressed.connect(func():
+		layer.queue_free()
+		_mode = "closed"
+		_set_ui_mouse_mode(false)
+	)
+	v.add_child(close)
+	_mode = "achievements"
+	_set_ui_mouse_mode(true)
+
+
+var _effect_hud: VBoxContainer = null
+var _brew_stand = null
+var _brew_cell: Vector3i = Vector3i.ZERO
+var _brew_panel: Panel = null
+
+
+func _build_effect_hud() -> void:
+	_effect_hud = VBoxContainer.new()
+	_effect_hud.name = "EffectHUD"
+	_effect_hud.position = Vector2(12, 80)
+	_effect_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_effect_hud)
+
+
+func _refresh_effect_hud() -> void:
+	if _effect_hud == null or player == null:
+		return
+	for c in _effect_hud.get_children():
+		c.queue_free()
+	if not ("active_effects" in player):
+		return
+	for eid in player.active_effects.keys():
+		var data = player.active_effects[eid]
+		var dur = int(ceil(float(data.get("duration", 0.0))))
+		var amp = int(data.get("amplifier", 0))
+		var l = Label.new()
+		var roman = Registry.roman_level(amp + 1) if Registry.has_method("roman_level") else str(amp + 1)
+		l.text = "%s %s  %ds" % [str(eid).replace("_", " ").capitalize(), roman, dur]
+		l.add_theme_font_size_override("font_size", 13)
+		l.add_theme_color_override("font_color", Color(0.75, 0.55, 1.0))
+		l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+		_effect_hud.add_child(l)
+
+
+func set_boss_bar(title: String, frac: float) -> void:
+	if title == "":
+		hide_boss_bar()
+		return
+	if _boss_bar == null:
+		show_boss_bar(title, 1.0)
+	else:
+		_boss_label.text = title
+		_boss_bar.visible = true
+		_boss_label.visible = true
+	_boss_bar.max_value = 1.0
+	_boss_bar.value = clampf(frac, 0.0, 1.0)
+
+
+func open_brewing(stand, cell: Vector3i) -> void:
+	_brew_stand = stand
+	_brew_cell = cell
+	_mode = "brewing"
+	_set_ui_mouse_mode(true)
+	if _brew_panel != null and is_instance_valid(_brew_panel):
+		_brew_panel.queue_free()
+	_brew_panel = Panel.new()
+	var st = StyleBoxFlat.new()
+	st.bg_color = Color(0.12, 0.1, 0.16, 0.96)
+	st.border_color = Color(0.55, 0.35, 0.7)
+	st.set_border_width_all(2)
+	_brew_panel.add_theme_stylebox_override("panel", st)
+	_brew_panel.custom_minimum_size = Vector2(360, 280)
+	_brew_panel.position = Vector2(200, 80)
+	add_child(_brew_panel)
+	var v = VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.offset_left = 12
+	v.offset_top = 12
+	v.offset_right = -12
+	v.offset_bottom = -12
+	_brew_panel.add_child(v)
+	var title = Label.new()
+	title.text = "Brewing Stand"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 20)
+	v.add_child(title)
+	var hint = Label.new()
+	hint.text = "Bottles + ingredient + Blaze Powder. Water bottle + Nether Wart = Awkward."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(hint)
+	var row = HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_child(row)
+	for i in range(3):
+		var b = Button.new()
+		b.custom_minimum_size = Vector2(64, 64)
+		b.text = _brew_slot_text(stand.bottles[i] if stand else null)
+		var idx = i
+		b.pressed.connect(func(): _brew_click_bottle(idx))
+		row.add_child(b)
+	var ing = Button.new()
+	ing.text = "Ingredient: " + _brew_slot_text(stand.ingredient if stand else null)
+	ing.pressed.connect(func(): _brew_click_ing())
+	v.add_child(ing)
+	var fuel = Button.new()
+	fuel.text = "Blaze Powder: " + _brew_slot_text(stand.fuel if stand else null)
+	fuel.pressed.connect(func(): _brew_click_fuel())
+	v.add_child(fuel)
+	var close = Button.new()
+	close.text = "Close"
+	close.pressed.connect(func():
+		if _brew_panel:
+			_brew_panel.queue_free()
+		_brew_panel = null
+		_mode = "closed"
+		_set_ui_mouse_mode(false)
+	)
+	v.add_child(close)
+
+
+func _brew_slot_text(stack) -> String:
+	if stack == null:
+		return "(empty)"
+	return str(stack.item_id) + " x" + str(stack.count)
+
+
+func _brew_take_or_put(current):
+	if _cursor != null and current == null:
+		var one = ItemStack.new(_cursor.item_id, 1)
+		_cursor.count -= 1
+		if _cursor.count <= 0:
+			_cursor = null
+		_refresh_cursor()
+		return one
+	if _cursor == null and current != null:
+		_cursor = current
+		_refresh_cursor()
+		return null
+	return current
+
+
+func _brew_click_bottle(i: int) -> void:
+	if _brew_stand == null:
+		return
+	_brew_stand.bottles[i] = _brew_take_or_put(_brew_stand.bottles[i])
+	open_brewing(_brew_stand, _brew_cell)
+
+
+func _brew_click_ing() -> void:
+	if _brew_stand == null:
+		return
+	_brew_stand.ingredient = _brew_take_or_put(_brew_stand.ingredient)
+	open_brewing(_brew_stand, _brew_cell)
+
+
+func _brew_click_fuel() -> void:
+	if _brew_stand == null:
+		return
+	_brew_stand.fuel = _brew_take_or_put(_brew_stand.fuel)
+	open_brewing(_brew_stand, _brew_cell)

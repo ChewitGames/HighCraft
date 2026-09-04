@@ -11,5 +11,11 @@
   { "result": "firework_rocket", "count": 3, "shapeless": ["gunpowder", "paper"] },
   { "result": "firework_star", "count": 1, "shapeless": ["gunpowder", "glowstone_dust"] },
   { "result": "name_tag", "count": 1, "shapeless": ["paper", "string"] },
-  { "result": "saddle", "count": 1, "shape": ["LLL", "I I"], "ingredients": { "L": "leather", "I": "iron_ingot" } }
+  { "result": "saddle", "count": 1, "shape": ["LLL", "I I"], "ingredients": { "L": "leather", "I": "iron_ingot" } },
+  { "result": "fermented_spider_eye", "count": 1, "shapeless": ["spider_eye", "sugar", "brown_mushroom"] },
+  { "result": "glistering_melon", "count": 1, "shapeless": ["melon_slice", "gold_nugget"] },
+  { "result": "golden_carrot", "count": 1, "shape": ["GGG", "GCG", "GGG"], "ingredients": { "G": "gold_nugget", "C": "carrot" } },
+  { "result": "magma_cream", "count": 1, "shapeless": ["blaze_powder", "slimeball"] },
+  { "result": "blaze_powder", "count": 2, "shapeless": ["blaze_rod"] },
+  { "result": "end_crystal", "count": 1, "shape": ["GGG", "GEG", "GTG"], "ingredients": { "G": "glass", "E": "eye_of_ender", "T": "ghast_tear" } }
 ]

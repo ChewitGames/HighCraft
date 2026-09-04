@@ -13,7 +13,10 @@ func get_enchantment_level(enchant_id: String) -> int:
 func get_enchantment_names() -> Array:
 	var names = []
 	for id in enchantments.keys():
-		names.append(id + " " + str(enchantments[id]))
+		if Registry != null and Registry.has_method("enchantment_display"):
+			names.append(Registry.enchantment_display(str(id), int(enchantments[id])))
+		else:
+			names.append(str(id).replace("_", " ").capitalize() + " " + str(enchantments[id]))
 	return names
 
 var item_id: String
@@ -26,6 +29,12 @@ func _init(p_id: String, p_count: int = 1) -> void:
 	var it = Registry.get_item(p_id)
 	if it != null and it.has("durability"):
 		durability = int(it["durability"])
+	if it != null and str(it.get("stored_enchant", "")) != "":
+		var eid := str(it["stored_enchant"])
+		var lvl := 1
+		if Registry.enchantments.has(eid):
+			lvl = int(Registry.enchantments[eid].get("max_level", 1))
+		enchantments[eid] = lvl
 
 func max_stack() -> int:
 	return Registry.max_stack_of(item_id)

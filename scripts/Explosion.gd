@@ -22,9 +22,11 @@ func explode(origin: Vector3, world = null, renderer = null) -> void:
 			var col = result.get("collider")
 			if col == null: continue
 			if col.has_method("take_damage"):
-				col.take_damage(damage)
+				col.take_damage(damage, origin)
 			elif col.has_method("take_hit"):
 				col.take_hit(damage)
+				if col.has_method("apply_knockback"):
+					col.apply_knockback(origin, 7.0)
 			elif col.has_method("mob_hit"):
 				col.mob_hit(damage)
 

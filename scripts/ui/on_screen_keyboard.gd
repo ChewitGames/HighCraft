@@ -26,7 +26,8 @@ func open(edit: LineEdit) -> void:
 	target = edit
 	_shift = false
 	_focus = 0
-	layer = 200
+	# Must stay above callers such as AvatarEditor, which itself uses layer 300.
+	layer = 1000
 	_ignore_focus = true
 	_build()
 	_ignore_focus = false
@@ -91,7 +92,7 @@ func _build() -> void:
 	root.add_child(_preview)
 
 	var hint := Label.new()
-	hint.text = "D-Pad move | A type | X space | Y shift | B backspace | Start done"
+	hint.text = "D-Pad move | A type | X space | Y shift | B/Start done"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(hint)
 
@@ -205,6 +206,25 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not is_open():
 		return
+	# Physical keyboard support while the on-screen keyboard is visible.
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			close(false)
+		elif event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+			close(true)
+		elif event.keycode == KEY_BACKSPACE:
+			_press("BACK")
+		elif event.unicode >= 32:
+			var typed := String.chr(event.unicode)
+			target.text += typed
+			target.caret_column = target.text.length()
+			target.text_changed.emit(target.text)
+			_update_preview()
+		else:
+			return
+		if is_inside_tree() and get_viewport() != null:
+			get_viewport().set_input_as_handled()
+		return
 	# Split-screen: only the player who opened the keyboard may type
 	if owner_device >= 0 and event is InputEventJoypadButton:
 		if int(event.device) != owner_device:
@@ -238,7 +258,8 @@ func _input(event: InputEvent) -> void:
 		if _focus >= 0 and _focus < _keys.size() and is_instance_valid(_keys[_focus]):
 			_press(str(_keys[_focus].get_meta("osk_key", "")))
 	elif btn == JOY_BUTTON_B or btn == 1:
-		_press("BACK")
+		# B consistently leaves modal UI and keeps the entered name.
+		_press("DONE")
 	elif btn == JOY_BUTTON_X or btn == 2:
 		_press("SPACE")
 	elif btn == JOY_BUTTON_Y or btn == 3:

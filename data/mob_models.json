@@ -1,43 +1,504 @@
 {
-  "_comment": "HighCraft Mob Model Definitions v1.0\nEvery mob gets a unique model_type + parameters.\nSupported types (to be implemented in Mob.gd or new MobModel system):\n- biped, quadruped, creeper, spider, slime, blaze, dragon, ghast, wither, villager, snow_golem, iron_golem, squid, bat, ocelot, horse, rabbit, chicken, wolf, zombie_pigman, endermite, silverfish, shulker, wither_skeleton, stray, husk, zombie_villager, magma_cube, soulwraith, erebite, erebus_sovereign, hero_no_brain, charlie_emily\nParameters drive procedural mesh generation (head size, leg length, body proportions, special features like wool, wings, etc.).",
-  "mobs": {
-	"sheep":          {"type": "quadruped", "head_scale": 0.85, "body_scale": 1.15, "leg_length": 0.55, "wool": true, "wool_color_variants": ["white","orange","magenta","light_blue","yellow","lime","pink","gray","light_gray","cyan","purple","blue","brown","green","red","black"]},
-	"cow":            {"type": "quadruped", "head_scale": 1.0,  "body_scale": 1.25, "leg_length": 0.6,  "horns": true},
-	"mooshroom":      {"type": "quadruped", "head_scale": 1.0,  "body_scale": 1.25, "leg_length": 0.6,  "mushrooms": true},
-	"pig":            {"type": "quadruped", "head_scale": 0.9,  "body_scale": 1.1,  "leg_length": 0.5},
-	"chicken":        {"type": "chicken",   "head_scale": 0.7,  "body_scale": 0.9,  "leg_length": 0.7,  "wings": true, "feathers": true},
-	"rabbit":         {"type": "rabbit",    "head_scale": 0.95, "body_scale": 0.85, "leg_length": 0.65, "ears": true},
-	"horse":          {"type": "horse",     "head_scale": 1.0,  "body_scale": 1.4,  "leg_length": 0.9,  "saddle": false},
-	"ocelot":         {"type": "ocelot",    "head_scale": 0.8,  "body_scale": 0.95, "leg_length": 0.7,  "tail": true},
-	"squid":          {"type": "squid",     "head_scale": 1.2,  "body_scale": 1.0,  "tentacles": 8},
-	"bat":            {"type": "bat",       "head_scale": 0.6,  "body_scale": 0.7,  "wing_span": 1.8},
-	"villager":       {"type": "villager",  "head_scale": 0.9,  "body_scale": 1.0,  "leg_length": 0.6,  "nose": true, "profession_variants": ["farmer","librarian","blacksmith","butcher","cleric"]},
-	"snow_golem":     {"type": "snow_golem","head_scale": 0.7,  "body_scale": 1.0,  "leg_length": 0.5,  "pumpkin_head": true},
-	"iron_golem":     {"type": "iron_golem","head_scale": 0.85, "body_scale": 1.6,  "leg_length": 0.9,  "vine": true},
-	"erebite":        {"type": "biped",     "head_scale": 0.95, "body_scale": 1.1,  "leg_length": 0.75, "ender_pearl_eyes": true},
-	"zombie_pigman":  {"type": "biped",     "head_scale": 0.95, "body_scale": 1.05, "leg_length": 0.7,  "piglin_ears": true, "gold": true},
-	"wolf":           {"type": "quadruped", "head_scale": 0.85, "body_scale": 1.0,  "leg_length": 0.65, "ears": true, "tail": true},
-	"spider":         {"type": "spider",    "head_scale": 0.9,  "body_scale": 1.0,  "leg_length": 1.1,  "leg_count": 8, "red_eyes": true},
-	"cave_spider":    {"type": "spider",    "head_scale": 0.75, "body_scale": 0.85, "leg_length": 0.95, "leg_count": 8, "poison": true},
-	"zombie":         {"type": "biped",     "head_scale": 0.95, "body_scale": 1.05, "leg_length": 0.7,  "rotten": true},
-	"husk":           {"type": "biped",     "head_scale": 0.95, "body_scale": 1.05, "leg_length": 0.7,  "sand": true},
-	"zombie_villager":{"type": "villager",  "head_scale": 0.9,  "body_scale": 1.0,  "leg_length": 0.6,  "zombie": true, "nose": true},
-	"skeleton":       {"type": "skeleton",  "head_scale": 0.85, "body_scale": 1.0,  "leg_length": 0.75, "bow": true},
-	"stray":          {"type": "skeleton",  "head_scale": 0.85, "body_scale": 1.0,  "leg_length": 0.75, "ice": true},
-	"creeper":        {"type": "creeper",   "head_scale": 0.9,  "body_scale": 1.0,  "leg_length": 0.65, "explosive": true},
-	"witch":          {"type": "witch",     "head_scale": 0.9,  "body_scale": 1.0,  "leg_length": 0.6,  "hat": true, "nose": true},
-	"slime":          {"type": "slime",     "head_scale": 1.0,  "body_scale": 1.0,  "size_variants": [1,2,4]},
-	"silverfish":     {"type": "silverfish","head_scale": 0.6,  "body_scale": 0.8,  "leg_length": 0.4},
-	"endermite":      {"type": "endermite", "head_scale": 0.55, "body_scale": 0.75, "leg_length": 0.35},
-	"soulwraith":     {"type": "ghast",     "head_scale": 1.4,  "body_scale": 1.6,  "tentacles": 9, "fireball": true},
-	"magma_cube":     {"type": "slime",     "head_scale": 1.0,  "body_scale": 1.0,  "lava": true, "size_variants": [1,2,4]},
-	"blaze":          {"type": "blaze",     "head_scale": 0.8,  "body_scale": 1.1,  "rods": 12, "fire": true},
-	"wither_skeleton":{"type": "skeleton",  "head_scale": 0.9,  "body_scale": 1.15, "leg_length": 0.8,  "wither": true, "stone_sword": true},
-	"shulker":        {"type": "shulker",   "head_scale": 0.7,  "body_scale": 1.0,  "shell": true, "levitate": true},
-	"erebus_sovereign":{"type": "dragon",   "head_scale": 1.3,  "body_scale": 2.5,  "wing_span": 12.0, "boss": true, "fireball": true},
-	"wither":         {"type": "wither",    "head_scale": 1.1,  "body_scale": 1.4,  "skulls": 3, "boss": true},
-	"hero_no_brain":  {"type": "creeper",   "head_scale": 1.5,  "body_scale": 0.6,  "leg_length": 0.4,  "april_fools": true, "explosive": true},
-	"charlie_emily":  {"type": "biped",     "head_scale": 0.85, "body_scale": 0.95, "leg_length": 0.65, "special": true, "rose": true},
-	"ender_dragon":   {"type": "dragon",    "head_scale": 1.4,  "body_scale": 3.0,  "wing_span": 14.0, "boss": true, "crystal": true}
-  }
+	"_comment": "HighCraft Mob Model Definitions v1.0\nEvery mob gets a unique model_type + parameters.\nSupported types (to be implemented in Mob.gd or new MobModel system):\n- biped, quadruped, creeper, spider, slime, blaze, dragon, ghast, wither, villager, snow_golem, iron_golem, squid, bat, ocelot, horse, rabbit, chicken, wolf, zombie_pigman, endermite, silverfish, shulker, wither_skeleton, stray, husk, zombie_villager, magma_cube, soulwraith, erebite, erebus_sovereign, hero_no_brain, charlie_emily\nParameters drive procedural mesh generation (head size, leg length, body proportions, special features like wool, wings, etc.).",
+	"mobs": {
+		"sheep": {
+			"type": "quadruped",
+			"head_scale": 0.85,
+			"body_scale": 1.15,
+			"leg_length": 0.55,
+			"wool": true,
+			"wool_color_variants": [
+				"white",
+				"orange",
+				"magenta",
+				"light_blue",
+				"yellow",
+				"lime",
+				"pink",
+				"gray",
+				"light_gray",
+				"cyan",
+				"purple",
+				"blue",
+				"brown",
+				"green",
+				"red",
+				"black"
+			]
+		},
+		"cow": {
+			"type": "quadruped",
+			"head_scale": 1.0,
+			"body_scale": 1.25,
+			"leg_length": 0.6,
+			"horns": true
+		},
+		"mooshroom": {
+			"type": "quadruped",
+			"head_scale": 1.0,
+			"body_scale": 1.25,
+			"leg_length": 0.6,
+			"mushrooms": true
+		},
+		"pig": {
+			"type": "quadruped",
+			"head_scale": 0.9,
+			"body_scale": 1.1,
+			"leg_length": 0.5
+		},
+		"chicken": {
+			"type": "chicken",
+			"head_scale": 0.7,
+			"body_scale": 0.9,
+			"leg_length": 0.7,
+			"wings": true,
+			"feathers": true
+		},
+		"rabbit": {
+			"type": "rabbit",
+			"head_scale": 0.95,
+			"body_scale": 0.85,
+			"leg_length": 0.65,
+			"ears": true
+		},
+		"horse": {
+			"type": "horse",
+			"head_scale": 1.0,
+			"body_scale": 1.4,
+			"leg_length": 0.9,
+			"saddle": false
+		},
+		"ocelot": {
+			"type": "ocelot",
+			"head_scale": 0.8,
+			"body_scale": 0.95,
+			"leg_length": 0.7,
+			"tail": true
+		},
+		"squid": {
+			"type": "squid",
+			"head_scale": 1.2,
+			"body_scale": 1.0,
+			"tentacles": 8
+		},
+		"bat": {
+			"type": "bat",
+			"head_scale": 0.6,
+			"body_scale": 0.7,
+			"wing_span": 1.8
+		},
+		"villager": {
+			"type": "villager",
+			"head_scale": 0.9,
+			"body_scale": 1.0,
+			"leg_length": 0.6,
+			"nose": true,
+			"profession_variants": [
+				"farmer",
+				"librarian",
+				"blacksmith",
+				"butcher",
+				"cleric"
+			]
+		},
+		"snow_golem": {
+			"type": "snow_golem",
+			"head_scale": 1.0
+		},
+		"iron_golem": {
+			"type": "iron_golem",
+			"head_scale": 1.2,
+			"body_scale": 1.4
+		},
+		"erebite": {
+			"type": "biped",
+			"head_scale": 0.95,
+			"body_scale": 1.1,
+			"leg_length": 0.75,
+			"ender_pearl_eyes": true
+		},
+		"zombie_pigman": {
+			"type": "biped",
+			"head_scale": 0.95,
+			"body_scale": 1.05,
+			"leg_length": 0.7,
+			"piglin_ears": true,
+			"gold": true
+		},
+		"wolf": {
+			"type": "quadruped",
+			"head_scale": 0.85,
+			"body_scale": 1.0,
+			"leg_length": 0.65,
+			"ears": true,
+			"tail": true
+		},
+		"spider": {
+			"type": "spider",
+			"head_scale": 0.9,
+			"body_scale": 1.0,
+			"leg_length": 1.1,
+			"leg_count": 8,
+			"red_eyes": true
+		},
+		"cave_spider": {
+			"type": "spider",
+			"head_scale": 0.75,
+			"body_scale": 0.85,
+			"leg_length": 0.95,
+			"leg_count": 8,
+			"poison": true
+		},
+		"zombie": {
+			"type": "biped",
+			"head_scale": 0.95,
+			"body_scale": 1.05,
+			"leg_length": 0.7,
+			"rotten": true
+		},
+		"husk": {
+			"type": "biped",
+			"head_scale": 0.95,
+			"body_scale": 1.05,
+			"leg_length": 0.7,
+			"sand": true
+		},
+		"zombie_villager": {
+			"type": "villager",
+			"head_scale": 0.9,
+			"body_scale": 1.0,
+			"leg_length": 0.6,
+			"zombie": true,
+			"nose": true
+		},
+		"skeleton": {
+			"type": "skeleton",
+			"head_scale": 0.85,
+			"body_scale": 1.0,
+			"leg_length": 0.75,
+			"bow": true
+		},
+		"stray": {
+			"type": "skeleton",
+			"head_scale": 0.85,
+			"body_scale": 1.0,
+			"leg_length": 0.75,
+			"ice": true
+		},
+		"creeper": {
+			"type": "creeper",
+			"head_scale": 0.9,
+			"body_scale": 1.0,
+			"leg_length": 0.65,
+			"explosive": true
+		},
+		"witch": {
+			"type": "witch",
+			"head_scale": 0.9,
+			"body_scale": 1.0,
+			"leg_length": 0.6,
+			"hat": true,
+			"nose": true
+		},
+		"slime": {
+			"type": "slime",
+			"head_scale": 1.0,
+			"body_scale": 1.0,
+			"size_variants": [
+				1,
+				2,
+				4
+			]
+		},
+		"silverfish": {
+			"type": "silverfish",
+			"head_scale": 0.6,
+			"body_scale": 0.8,
+			"leg_length": 0.4
+		},
+		"endermite": {
+			"type": "endermite",
+			"head_scale": 0.55,
+			"body_scale": 0.75,
+			"leg_length": 0.35
+		},
+		"soulwraith": {
+			"type": "ghast",
+			"head_scale": 1.4,
+			"body_scale": 1.6,
+			"tentacles": 9,
+			"fireball": true
+		},
+		"magma_cube": {
+			"type": "slime",
+			"head_scale": 1.0,
+			"body_scale": 1.0,
+			"lava": true,
+			"size_variants": [
+				1,
+				2,
+				4
+			]
+		},
+		"blaze": {
+			"type": "blaze",
+			"head_scale": 0.8,
+			"body_scale": 1.1,
+			"rods": 12,
+			"fire": true
+		},
+		"wither_skeleton": {
+			"type": "skeleton",
+			"head_scale": 0.9,
+			"body_scale": 1.15,
+			"leg_length": 0.8,
+			"wither": true,
+			"stone_sword": true
+		},
+		"shulker": {
+			"type": "shulker",
+			"head_scale": 0.7,
+			"body_scale": 1.0,
+			"shell": true,
+			"levitate": true
+		},
+		"erebus_sovereign": {
+			"type": "dragon",
+			"head_scale": 1.3,
+			"body_scale": 2.5,
+			"wing_span": 12.0,
+			"boss": true,
+			"fireball": true
+		},
+		"wither": {
+			"type": "wither",
+			"head_scale": 1.0
+		},
+		"hero_no_brain": {
+			"type": "creeper",
+			"head_scale": 1.5,
+			"body_scale": 0.6,
+			"leg_length": 0.4,
+			"april_fools": true,
+			"explosive": true
+		},
+		"charlie_emily": {
+			"type": "biped",
+			"head_scale": 0.85,
+			"body_scale": 0.95,
+			"leg_length": 0.65,
+			"special": true,
+			"rose": true
+		},
+		"ender_dragon": {
+			"type": "dragon",
+			"head_scale": 1.4,
+			"body_scale": 3.0,
+			"wing_span": 14.0,
+			"boss": true,
+			"crystal": true
+		},
+		"chaos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.35,
+			"boss_aura": true
+		},
+		"gaia": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"tartaros": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.35,
+			"boss_aura": true
+		},
+		"nyx": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"erebos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"aither": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"hemera": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"uranos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"chronos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"ananke": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"zeus": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.35,
+			"boss_aura": true
+		},
+		"poseidon": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"hades": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"athena": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"ares": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"eidorian_ushiha": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.35,
+			"boss_aura": true
+		},
+		"mania_hedgehog": {
+			"type": "quadruped",
+			"head_scale": 1.1,
+			"body_scale": 0.9,
+			"leg_length": 0.5
+		},
+		"erebos_demon": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"angel_warden": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"demon_reaver": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"erebus_foreigner": {
+			"type": "biped",
+			"head_scale": 1.0
+		},
+		"hera": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"demeter": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"hestia": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"apollon": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"artemis": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"aphrodite": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"hephaistos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"hermes": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"dionysos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.2,
+			"boss_aura": true
+		},
+		"eros": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"pontos": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"ourea": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		},
+		"thalassa": {
+			"type": "biped",
+			"head_scale": 1.0,
+			"body_scale": 1.15,
+			"boss_aura": true
+		}
+	}
 }

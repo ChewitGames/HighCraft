@@ -1,0 +1,460 @@
+# HighCraft — Full Version 1.0
+**Chewit!Games™ · Copyright (C) 2026**
+
+Update log of full version 1.0 (Beta → 1.0).
+
+---
+
+## Main Menu & UI
+
+- New Main Menu with Live World Preview (Real Terrain)
+
+- Subtitles: **full version · 1.0**
+
+- Copyright Line: Chewit!Games™
+
+- Moved away from the old Dirt/Alpha look to a clean panel UI
+
+- **Controller Support** throughout the menu (Navigation, Settings, Host, Join, Split-Screen)
+
+- On-Screen Keyboard for Text Fields (Server Name, Room Code, etc.)
+
+- Settings as an in-scene panel (focusable, auto-scroll)
+
+- Host Dialog with Room Code (copy/start)
+
+- Local Split-Screen: 2-4 players selectable
+
+---
+
+## Controller & Split-Screen
+
+- Unified Pad Mapping (Xbox / generic also for PS / Nintendo)
+
+- Virtual Keyboard in-game (Search, Command Block, Anvil, Chat, etc.)
+
+- Inventory, Creative, Chest, Pause with Controller Focus
+
+- Split-Screen: Input and UI per player (Inventory, Hotbar, Pause)
+
+- Break/place/attack blocks for all local players
+
+---
+
+## World & Performance
+
+- Loading screen at world start
+
+- Chunk preload around spawn (radius ~6)
+
+- Mesh pool and worker pipeline (mesh build without SceneTree in threads)
+
+- Region system (32x32 chunks, sparse edits)
+
+- **World Isolation:** "New World" = new seed + unique `world_id`
+
+→ Builds from old worlds **do not** appear in new worlds
+
+- Load World only loads the associated save (no mixing of regions)
+
+---
+
+## Redstone & Mechanics
+
+- Redstone wire (cable appearance, connections, power 0-15)
+
+- Lever, button, pressure plate
+
+- Repeater / comparator (basic)
+
+- **Piston & Sticky Piston:** extend, retract; Sticky pulls blocks with it
+
+- Hopper / Dropper / Dispenser (basic logic + UI integration)
+
+- Command Block (cheats / saved commands)
+
+- Farming: hoe, seeds, growth with water/rain logic
+
+- Drown only with true overhang (at least 2 water blocks at the top)
+
+---
+
+## Entities & Interaction
+
+- Minecart (visible, tracks, drive / mount)
+
+- Boat (place, steer, exit)
+
+- Snowman, Iron Golem, Wither spawnable via building patterns
+
+- Improved mob models / animations (including Golem, Wither, various mobs)
+
+- Chest UI, Anvil, Villager Trade (Game UI)
+
+---
+
+## Structures
+- **Overworld:** Villages, cave systems, Stronghold including library, mineshaft
+- **Nether:** True Nether fortress (Nether Brick, stairs, wait for Soul Sand)
+
+- **End:** Proper obsidian/endstone towers (not just a line)
+- **Heaven:** Cloud villages
+
+---
+
+## Multiplayer
+- Host with room code (LAN + hints about tailscale/port)
+- Join via room code
+- Block sync between peers
+- Split-screen usable locally in parallel
+
+---
+
+## Known Notes
+- Chunk streaming is more performant than in the alpha, but not yet at Minecraft Java level
+- Some rare edge cases with split-screen UI/net sync may still occur (GOT ALREADY FIXED)
+- Old region folders under `user://highcraft_regions/seed_1337/` are no longer read by new worlds
+
+
+
+### Rendering Fix (Unique Blocks & Soul Sand)
+
+- Unique blocks (Fence, Chest, Piston, Stairs, Hopper, etc.) were "swallowing" neighboring blocks in the rendering—faces next to, below, and above them were missing. The cause: these models were incorrectly treated as fully opaque.
+
+- `is_opaque` now correctly treats non-solid models as translucent for face culling.
+
+- **Soul Sand** was invisible: the `type: "cube"` entry in the block models was aborting the mesher without generating a mesh.
+
+- Soul Sand and similar solid blocks now use the normal cube mesher again (visible brown texture).
+
+
+## HighCraft – Performance, Rendering & Audio Patch
+
+### Performance
+
+- Fixed major freeze spikes during chunk loading.
+- Chunk streaming queues are now rebuilt only when the player enters a different chunk or changes the render distance.
+- Removed repeated full queue sorting every frame.
+- Prevented chunk meshing from falling back to the main thread when all worker threads are busy.
+- Limited main-thread chunk generation to one new chunk per frame.
+- Optimized completed mesh-result handling to avoid unnecessary data duplication.
+- Cached block opacity information used by the chunk mesher.
+- Pressure plates are now checked ten times per second instead of every frame.
+- Added incremental region saving to reduce large save-time memory and performance spikes.
+
+### Rendering
+
+- Fixed missing faces and visible holes along unloaded chunk boundaries.
+- Added protection against outdated worker-thread results restoring chunks after they were unloaded.
+- Prevented old dimension meshes from appearing after dimension travel.
+- Removed irrelevant pending chunk requests when the player moves outside their range.
+- Improved chunk loading order and stability at higher render distances.
+
+### Enchanting Table UI
+
+- Fixed held items appearing behind the Enchanting Table interface.
+- Ensured the item cursor renders above all inventory panels.
+- Replaced the controller’s yellow item tint with a clean, transparent yellow focus border.
+- Enchanted item glints and icons are no longer obscured by controller focus effects.
+
+### Dimensions and Spawning
+
+- Fixed players and mobs spawning on top of Hell’s bedrock ceiling.
+- Hell surface detection now searches below the Nether roof.
+- Added a safe 5×5 obsidian spawn platform when entering Heaven.
+- Added a safe 5×5 obsidian spawn platform when entering The End.
+- Spawn platforms clear sufficient headroom to prevent players from spawning inside blocks.
+
+### Mob Sounds
+
+- Added randomized ambient sounds for nearby mobs.
+- Villagers now use their proper ambient, hurt, trade-success, and trade-rejection sounds.
+- Added appropriate attack, hurt, death, movement, and idle sounds for supported mobs.
+- Added sound mappings for Husk, Zombie Villager, Zombie Pigman, Stray, and Wither Skeleton.
+- Added Ender Dragon growls, roars, attacks, and wing-flap sounds.
+- Added appropriate sounds for Blaze, Ghast, Enderman, Slime, Magma Cube, Wither, and other supported creatures.
+
+### Player and World Sounds
+
+- Added proper sounds for jumping and firing bows.
+- Added material-dependent player footsteps.
+- Added dedicated player hurt and death sounds.
+- Added proper item pickup and item drop sounds.
+- Added dedicated inventory open and close sounds.
+- Added proper chest open and close sounds.
+- Added wooden door, trapdoor, and fence-gate sounds.
+- Added the correct eating sound.
+- Block breaking now uses the appropriate material sound instead of a generic effect.
+- Added dimension-entry sound feedback.
+
+### Additional Fixes
+
+- Fixed Villager trades granting the reward multiple times when an offer required more than one type of item.
+
+
+
+---
+
+
+
+Sky Shader & Weather Fix
+
+- Fixed a bug that caused the skybox in the game to be covered by a solid blue area.
+
+- Distant fog still affects distant landscapes but no longer obscures the sky.
+
+- Sun, moon, stars, and animated clouds are now displayed correctly.
+
+- Sun and moon are now rendered in the correct shader order and are no longer completely obscured by clouds.
+
+- New worlds now start with a guaranteed period of good weather instead of immediately triggering rain or thunderstorms.
+
+- Rain now has a fixed duration and can no longer be randomly extended indefinitely.
+
+- Weather changes are now smoother, so cloud and sky colors no longer change abruptly.
+
+- Thunderstorms occur less frequently and in a more controlled manner.
+
+- Sleeping and dimension shifts reliably reset rain, thunderstorms, and lightning effects.
+
+- Shader parameters for time of day, rain, and thunderstorms are continuously updated.
+
+- The skybox display has been unified for single-player and local split-screen.
+
+- Split-screen cameras use dedicated Sky and Environment instances to prevent blue or incorrectly cached backgrounds.
+
+- The day-night cycle and the direction of actual light sources now better align with the sun and moon in the sky.
+
+
+Firework Rocket Fix
+
+Firework Rockets are now fully functional across HighCraft:
+- Rockets can be launched from the ground using right-click or the controller trigger.
+- Dispensers can now properly launch Firework Rockets.
+- Rockets fly 20–25 blocks above their starting position before exploding.
+- Explosions display large, bright, randomly colored firework effects.
+- Firework explosions are purely visual and cause no entity damage, player damage, block damage, or destruction.
+- Firework Rockets now properly boost players while gliding with an Elytra.
+- The Elytra boost remains active instead of being overwritten immediately by the normal gliding speed.
+- Improved input handling prevents rockets from being activated twice accidentally.
+
+# HighCraft – Rise of the Gods Update
+
+The Greek gods have arrived in HighCraft – and with them, powers older than Mount Olympus itself.
+
+## The Primal Gods
+
+The personified primal forces of creation can now be encountered as powerful bosses:
+
+- Chaos
+- Gaia
+- Tartarus
+- Nyx
+- Erebus
+- Aither
+- Hemera
+- Uranus
+- Chronos
+- Ananke
+
+Each defeated primordial god leaves behind their own **Realm Stone**. These stones carry a portion of their original power.
+
+- Realm Stone Erebus shrouds the world in night.
+
+- Realm Stone Nyx also summons night.
+
+- Realm Stone Hemera brings about daybreak.
+
+- Realm Stone Aither restores the light of day.
+
+- Realm Stone Gaia restores the player's health.
+
+- Realm Stone Chronos temporarily freezes creatures in the vicinity.
+
+- Realm Stone Chaos fully restores health and hunger.
+
+## The Olympian Gods
+
+The gods of Olympus have also entered HighCraft:
+
+- Zeus
+- Poseidon
+- Hades
+- Hera
+- Demeter
+- Hestia
+- Athena
+- Ares
+- Apollo
+- Artemis
+- Aphrodite
+- Hephaestus
+- Hermes
+- Dionysus
+
+They appear as unique boss enemies with their own stats, appearances, and Realm Stones.
+
+- Realm Stone Zeus summons a lightning bolt at the targeted location.
+
+- Realm Stone Poseidon grants Water Breathing for a short time.
+
+- Each god leaves behind the Realm Stone of their domain upon defeat.
+
+## Other Divine Beings
+
+- **Eidorian Ushiha** appears as a particularly powerful creation boss. - He drops the **Realm Stone Creation** and the **Godly Sword Eidorian**.
+
+- **Mania The Hedgehog** drops the **Realm Stone Mania**, which temporarily grants superhuman speed.
+
+## Servants of the Higher Powers
+
+With the gods, new creatures also enter the world:
+
+- **Erebus Demon** – inflicts a slowing curse on the player upon eye contact and then begins sprinting.
+
+- **Angel Warden**
+
+- **Demon Reaver**
+
+- **Erebus Foreigner**
+
+## Realm Stones
+
+Realm Stones are not ordinary loot. They are manifestations of the defeated deity and allow the player to directly control a part of its domain:
+
+**Time. Night. Light. Life. Sea. Lightning. Chaos. Creation.**
+
+> Do not defeat a god if you are not ready to bear their power.
+
+
+
+Patch Notes – Avatar & Skin Creator Update
+- Enhanced skin detail and improved character proportions.
+- Added male and female body options.
+- Added Liddle, Young, Adult and Old age variants.
+- Added Thin, Average and Fat body builds with matching limbs and feet.
+- Added adjustable character silhouette options.
+- Added over 20 hairstyles, outfits, capes, hoods and hats.
+- Added beard, glasses and 20+ line-based mouth styles.
+- Hairstyles and cosmetics are available for every character type.
+- Added individual color selection for skin, hair, eyes, clothes and accessories.
+- Added a controller-compatible pixel painting editor.
+- Added mouse and right-stick character rotation.
+- Added full controller support for dropdowns, sliders and editor navigation.
+- Added Create Skin and Select Skin directly to the main menu.
+- Improved outfit details and prevented clothing variants from overlapping.
+- Improved avatar previews, UI focus visibility and menu navigation.
+- Fixed virtual keyboard, skin naming, saving, loading and exporting.
+- Fixed several layering, popup, camera and cosmetic-placement issues.
+
+
+Patch Note – Chunk Loading Fix
+- Fixed players falling through the world while chunks are still loading.
+- Players now stop safely at unloaded chunk boundaries.
+- Nearby collision chunks receive loading priority.
+- Added automatic recovery to the last safe position if terrain collision is unavailable.
+
+
+
+## Patch Notes – Commands Update
+
+- Added `/weather clear`, `/weather rainy`, and `/weather thunderstorm`.
+- Added target selectors:
+  - `@s` – yourself
+  - `@p` – nearest player
+  - `@a` – all players
+  - `@PlayerName` – specific player
+- Added selectors to Give, Kill, Teleport, Heal, Gamemode, Difficulty, Spawn, Say, Time, and Weather commands.
+- Commands, item names, mob names, and arguments are now case-insensitive.
+- Added flexible quantity syntax:
+  - `/give x64 Diamonds`
+  - `/give Diamonds x64`
+  - `/spawn x64 Charlie_Emily`
+  - `/spawn Charlie_Emily x64`
+- Added support for item display names, IDs, underscores, and simple plural names.
+- Multiple summoned mobs now spawn around the target instead of inside each other.
+- Command Blocks now use the same command system as chat.
+- Weather commands immediately update the sky, particles, thunderstorms, and split-screen environments.
+
+
+## Other – Patch Notes
+
+### Controller & Performance
+
+- Fixed severe controller input lag in gameplay.
+
+- The cause was a full scene tree scan with every analog stick event.
+
+- Controller inputs are now processed efficiently.
+
+- Moving forward, looking around, and other controller movements are now smooth again.
+
+- Agile input processing enabled.
+
+- Reduced VSync queue to avoid additional input lag.
+
+### Split-Screen
+
+- Each player now only renders chunks within their own view range.
+
+- Chunks from other, distant split-screen players are no longer rendered in every viewport.
+
+- Separate terrain render layers introduced for up to four local players.
+
+- Reduced unnecessary split-screen rendering load.
+
+- Controller mapping is retained when a local player leaves the session.
+
+- Remaining viewports are automatically rearranged after a player leaves.
+
+
+### Skins & Avatars
+
+- Each split-screen player can now select their own skin.
+
+- Changing a player's skin no longer affects the skins of other players.
+
+- Selected local skins are saved separately for each player.
+
+- Online players transmit their own skin to all other participants.
+
+- Custom skin data is also synchronized across the network.
+
+- Players joining later receive the skins already active by all online players.
+
+### Individual Menus
+
+- Each split-screen player now has their own pause menu.
+
+- Opening a menu only locks the controls of the selected player.
+
+- Other local and online players can continue playing while the menu is open.
+
+- Controller navigation remains separate for each player and controller.
+
+- Inventory, skin, and avatar menus no longer affect the controls of other players.
+
+### Leaving Sessions
+
+- The global "Quit Game" button has been replaced with context-sensitive actions:
+
+- `Leave Player` in split-screen mode
+
+- `Leave Server` in online multiplayer mode
+
+- `Exit to Menu` in single-player mode
+- A split-screen player can leave the game without terminating all other local players.
+
+- An online client can leave the server without disconnecting other players.
+
+- Disconnected online players and their avatars are correctly deleted from the world.
+
+### Note
+
+- If the host leaves an online server, the session still ends for all participants. Host migration is not currently implemented.
+
+
+## Credits
+**HighCraft Full Version 1.0**
+Copyright (C) 2026 Chewit!Games™
+Built with Godot 4

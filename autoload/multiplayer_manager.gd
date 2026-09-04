@@ -11,6 +11,9 @@ var pvp_enabled: bool = true
 var server_ip: String = ""
 var public_ip: String = ""
 var tailscale_ip: String = ""
+var _pending_world_edits: Array = []
+var _pending_world_peers: Array = []
+var _peer_skins: Dictionary = {}
 
 var upnp: UPNP
 
@@ -38,10 +41,37 @@ func _on_peer_connected(id: int) -> void:
 	print("[Multiplayer] Player connected: ", id)
 	if is_host:
 		rpc_id(id, "sync_pvp_setting", pvp_enabled)
+		if has_node("/root/Config"):
+			var cfg = get_node("/root/Config")
+			rpc_id(id, "sync_world_config", {
+				"seed": cfg.seed_val, "world_id": cfg.world_id,
+				"world_type": cfg.world_type, "structures": cfg.generate_structures,
+				"game_mode": cfg.game_mode, "difficulty": cfg.difficulty,
+				"pvp": pvp_enabled
+			})
+		# Ask game to push edits to this peer. Hosting can begin in the main menu,
+		# before Game has connected the signal, so retain early requests.
+		if has_meta("game") and is_instance_valid(get_meta("game")):
+			peer_ready_for_world.emit(id)
+		else:
+			_pending_world_peers.append(id)
+		# A late joiner must receive every avatar already present, not only future
+		# skin changes.
+		for peer_id in _peer_skins.keys():
+			var entry: Dictionary = _peer_skins[peer_id]
+			rpc_id(id, "_rpc_player_skin_relay", int(peer_id), str(entry.get("name", "afro_steve")), entry.get("data", {}))
+
+signal peer_ready_for_world(peer_id: int)
+signal player_state_received(peer_id: int, position: Vector3, yaw: float, pitch: float, held_item_id: String, held_enchantments: Dictionary)
+signal player_left(peer_id: int)
+signal player_skin_received(peer_id: int, skin_name: String, skin_data: Dictionary)
+signal world_config_received
 
 
 func _on_peer_disconnected(id: int) -> void:
 	print("[Multiplayer] Player disconnected: ", id)
+	_peer_skins.erase(id)
+	player_left.emit(id)
 
 
 func _on_connected_to_server() -> void:
@@ -144,12 +174,66 @@ func disconnect_from_server() -> void:
 	multiplayer.multiplayer_peer = null
 	is_host = false
 	is_multiplayer = false
+	_peer_skins.clear()
+
+
+func set_local_player_skin(skin_name: String, skin_data: Dictionary) -> void:
+	if not is_multiplayer or multiplayer.multiplayer_peer == null:
+		return
+	var own_id := multiplayer.get_unique_id()
+	_peer_skins[own_id] = {"name": skin_name, "data": skin_data.duplicate(true)}
+	if is_host:
+		for peer_id in multiplayer.get_peers():
+			rpc_id(peer_id, "_rpc_player_skin_relay", own_id, skin_name, skin_data)
+	else:
+		rpc_id(1, "_rpc_player_skin", skin_name, skin_data)
+
+
+func get_peer_skins() -> Dictionary:
+	return _peer_skins.duplicate(true)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_player_skin(skin_name: String, skin_data: Dictionary) -> void:
+	if not is_host:
+		return
+	var origin_peer := multiplayer.get_remote_sender_id()
+	_peer_skins[origin_peer] = {"name": skin_name, "data": skin_data.duplicate(true)}
+	player_skin_received.emit(origin_peer, skin_name, skin_data)
+	for peer_id in multiplayer.get_peers():
+		if peer_id != origin_peer:
+			rpc_id(peer_id, "_rpc_player_skin_relay", origin_peer, skin_name, skin_data)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_player_skin_relay(peer_id: int, skin_name: String, skin_data: Dictionary) -> void:
+	if peer_id == multiplayer.get_unique_id():
+		return
+	_peer_skins[peer_id] = {"name": skin_name, "data": skin_data.duplicate(true)}
+	player_skin_received.emit(peer_id, skin_name, skin_data)
 
 
 # ==================== PvP ====================
 @rpc("authority", "call_local", "reliable")
 func sync_pvp_setting(enabled: bool) -> void:
 	pvp_enabled = enabled
+
+
+@rpc("authority", "call_remote", "reliable")
+func sync_world_config(data: Dictionary) -> void:
+	if has_node("/root/Config"):
+		var cfg = get_node("/root/Config")
+		cfg.seed_val = int(data.get("seed", cfg.seed_val))
+		cfg.world_id = str(data.get("world_id", cfg.world_id))
+		cfg.world_type = str(data.get("world_type", "normal"))
+		cfg.generate_structures = bool(data.get("structures", true))
+		cfg.game_mode = int(data.get("game_mode", 1))
+		cfg.difficulty = int(data.get("difficulty", 2))
+		cfg.pvp_enabled = bool(data.get("pvp", true))
+		cfg.pending_save = null
+		cfg.load_regions_from_disk = false
+	pvp_enabled = bool(data.get("pvp", true))
+	world_config_received.emit()
 
 
 func set_pvp(enabled: bool) -> void:
@@ -192,3 +276,107 @@ func get_connection_info() -> String:
 	
 	info += "\nFor internet play use Tailscale or set up port forwarding."
 	return info
+
+
+# ==================== PLAYER STATE ====================
+## Movement is transient state: unreliable delivery avoids old packets piling
+## up and 10 Hz from Game is enough because remote avatars interpolate.
+func broadcast_player_state(position: Vector3, yaw: float, pitch: float, held_item_id: String = "", held_enchantments: Dictionary = {}) -> void:
+	if not is_multiplayer or multiplayer.multiplayer_peer == null:
+		return
+	var own_id := multiplayer.get_unique_id()
+	if is_host:
+		for peer_id in multiplayer.get_peers():
+			rpc_id(peer_id, "_rpc_player_state_relay", own_id, position, yaw, pitch, held_item_id, held_enchantments)
+	else:
+		if multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+			rpc_id(1, "_rpc_player_state", position, yaw, pitch, held_item_id, held_enchantments)
+
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _rpc_player_state(position: Vector3, yaw: float, pitch: float, held_item_id: String = "", held_enchantments: Dictionary = {}) -> void:
+	if not is_host:
+		return
+	var origin_peer := multiplayer.get_remote_sender_id()
+	player_state_received.emit(origin_peer, position, yaw, pitch, held_item_id, held_enchantments)
+	for peer_id in multiplayer.get_peers():
+		if peer_id != origin_peer:
+			rpc_id(peer_id, "_rpc_player_state_relay", origin_peer, position, yaw, pitch, held_item_id, held_enchantments)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _rpc_player_state_relay(peer_id: int, position: Vector3, yaw: float, pitch: float, held_item_id: String = "", held_enchantments: Dictionary = {}) -> void:
+	if peer_id == multiplayer.get_unique_id():
+		return
+	player_state_received.emit(peer_id, position, yaw, pitch, held_item_id, held_enchantments)
+
+
+
+# ==================== WORLD BLOCK SYNC ====================
+signal block_received(x: int, y: int, z: int, id: String)
+
+## Call when local player places/breaks a block
+func broadcast_block(x: int, y: int, z: int, id: String) -> void:
+	if not is_multiplayer or multiplayer.multiplayer_peer == null:
+		return
+	var own_id := multiplayer.get_unique_id()
+	if is_host:
+		for peer_id in multiplayer.get_peers():
+			rpc_id(peer_id, "_rpc_block_edit_relay", own_id, x, y, z, id)
+	else:
+		rpc_id(1, "_rpc_block_edit", x, y, z, id)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _rpc_block_edit(x: int, y: int, z: int, id: String) -> void:
+	if not is_host:
+		return
+	var origin_peer := multiplayer.get_remote_sender_id()
+	block_received.emit(x, y, z, id)
+	# Relay only to the other peers. The sender already applied its local edit;
+	# echoing it back caused a second expensive chunk rebuild.
+	for peer_id in multiplayer.get_peers():
+		if peer_id != origin_peer:
+			rpc_id(peer_id, "_rpc_block_edit_relay", origin_peer, x, y, z, id)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_block_edit_relay(_origin_peer: int, x: int, y: int, z: int, id: String) -> void:
+	block_received.emit(x, y, z, id)
+
+
+## Host sends full edit list to a joining peer
+func send_edits_to_peer(peer_id: int, edits: Array) -> void:
+	if not is_host:
+		return
+	# Large worlds can contain thousands of edits. One giant reliable RPC causes
+	# a serialization hitch and may exceed a practical ENet packet size.
+	const EDIT_BATCH_SIZE := 256
+	var offset := 0
+	while offset < edits.size():
+		var batch := edits.slice(offset, mini(offset + EDIT_BATCH_SIZE, edits.size()))
+		rpc_id(peer_id, "_rpc_receive_edits", batch)
+		offset += EDIT_BATCH_SIZE
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_receive_edits(edits: Array) -> void:
+	# Game listens via signal or applies if registered
+	if has_meta("game") and get_meta("game") != null:
+		var g = get_meta("game")
+		if g.has_method("apply_remote_edits"):
+			g.apply_remote_edits(edits)
+	else:
+		_pending_world_edits.append_array(edits)
+
+
+func take_pending_world_edits() -> Array:
+	var out := _pending_world_edits
+	_pending_world_edits = []
+	return out
+
+
+func take_pending_world_peers() -> Array:
+	var out := _pending_world_peers
+	_pending_world_peers = []
+	return out

@@ -42,16 +42,12 @@ void sky() {
     float sun_dot = max(dot(EYEDIR, sun_dir), 0.0);
     float sun_glow = pow(sun_dot, 25.0);
     float sun_disk = pow(sun_dot, 250.0);
-    color += vec3(1.0, 0.75, 0.45) * sun_glow * day;
-    color += vec3(1.0, 0.95, 0.75) * sun_disk * day;
 
     // === MOND ===
     vec3 moon_dir = -sun_dir;
     float moon_dot = max(dot(EYEDIR, moon_dir), 0.0);
     float moon_glow = pow(moon_dot, 25.0);
     float moon_disk = pow(moon_dot, 180.0);
-    color += vec3(0.4, 0.55, 1.0) * moon_glow * night;
-    color += vec3(0.85, 0.9, 1.0) * moon_disk * night;
 
     // =========================
     // WOLKEN - Stark verbessert
@@ -89,6 +85,15 @@ void sky() {
     float cloud_alpha = clouds * mix(0.5, 0.95, rain_amount); // bei Regen fast undurchsichtig
 
     color = mix(color, cloud_color, cloud_alpha);
+
+    // Draw celestial bodies after the cloud layer. The old order let even the
+    // normal fair-weather clouds overwrite the disks completely. Heavy weather
+    // still fades them naturally.
+    float celestial_visibility = 1.0 - rain_amount * 0.92;
+    color += vec3(1.0, 0.75, 0.45) * sun_glow * day * celestial_visibility;
+    color += vec3(1.0, 0.95, 0.75) * sun_disk * day * celestial_visibility;
+    color += vec3(0.4, 0.55, 1.0) * moon_glow * night * celestial_visibility;
+    color += vec3(0.85, 0.9, 1.0) * moon_disk * night * celestial_visibility;
 
     // === STERNE ===
     vec2 star_pos = floor(EYEDIR.xz * 600.0);

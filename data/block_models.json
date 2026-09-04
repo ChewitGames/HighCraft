@@ -1,6 +1,13 @@
 {
 	"_comment": "HighCraft Block Model Definitions v1.0\nDefines unique shapes for non-cube blocks.\nSupported types: cube (default), stairs, torch, door, trapdoor, redstone_wire, daylight_sensor, pressure_plate, button, fence, fence_gate, piston, chest, cross, anvil, bed.\nThe ChunkMesher will check Registry.block_models[block_id] and generate custom geometry instead of 6 full faces.",
 	"models": {
+		"nether_portal": { "type": "portal", "axis": "auto", "color": [0.55, 0.2, 0.85, 0.72] },
+		"heaven_portal": { "type": "portal", "axis": "auto", "color": [0.75, 0.9, 1.0, 0.7] },
+		"end_portal": { "type": "portal", "axis": "floor", "color": [0.08, 0.02, 0.12, 0.92] },
+		"end_portal_frame": { "type": "enchanting_table", "texture": "end_stone" },
+		"end_portal_frame_filled": { "type": "enchanting_table", "texture": "end_stone" },
+		"brewing_stand": { "type": "anvil", "texture": "brewing_stand" },
+		"end_crystal": { "type": "cross", "texture": "end_crystal" },
 		"torch": {
 			"type": "torch",
 			"texture": "torch",
@@ -223,6 +230,82 @@
 		"detector_rail": {
 			"type": "rail",
 			"texture": "detector_rail"
+		},
+		"wheat_0": {
+			"type": "cross",
+			"texture": "wheat_0"
+		},
+		"wheat_1": {
+			"type": "cross",
+			"texture": "wheat_1"
+		},
+		"wheat_2": {
+			"type": "cross",
+			"texture": "wheat_2"
+		},
+		"wheat_3": {
+			"type": "cross",
+			"texture": "wheat_3"
+		},
+		"carrots_0": {
+			"type": "cross",
+			"texture": "carrots_0"
+		},
+		"carrots_3": {
+			"type": "cross",
+			"texture": "carrots_3"
+		},
+		"potatoes_0": {
+			"type": "cross",
+			"texture": "potatoes_0"
+		},
+		"potatoes_3": {
+			"type": "cross",
+			"texture": "potatoes_3"
+		},
+		"farmland": {
+			"type": "farmland",
+			"texture": "dirt"
+		},
+		"farmland_moist": {
+			"type": "farmland",
+			"texture": "dirt"
+		},
+		"enchanting_table": {
+			"type": "enchanting_table",
+			"texture": "obsidian"
+		},
+		"fire": {
+			"type": "fire",
+			"texture": "fire"
+		},
+		"nether_brick_stairs": {
+			"type": "stairs",
+			"texture": "nether_bricks"
+		},
+		"oak_stairs": {
+			"type": "stairs",
+			"texture": "oak_planks"
+		},
+		"cobblestone_stairs": {
+			"type": "stairs",
+			"texture": "cobblestone"
+		},
+		"nether_wart": {
+			"type": "cross",
+			"texture": "nether_wart"
+		},
+		"cobweb": {
+			"type": "cross",
+			"texture": "cobweb"
+		},
+		"wither_skeleton_skull": {
+			"type": "skull",
+			"texture": "wither_skeleton_skull"
+		},
+		"iron_bars": {
+			"type": "fence",
+			"texture": "iron_block"
 		}
 	}
 }

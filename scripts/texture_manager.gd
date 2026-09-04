@@ -80,8 +80,20 @@ func _generate_fallback(id: String) -> ImageTexture:
 		_draw_elytra(img, color)
 	elif "disc" in name or "record" in name:
 		_draw_disc(img, color)
-	elif "pickaxe" in name or "axe" in name or "shovel" in name or "sword" in name:
+	elif name.ends_with("_pickaxe") or name.ends_with("_axe") or name.ends_with("_shovel") or name.ends_with("_sword") or name.ends_with("_hoe") or name in ["pickaxe", "axe", "shovel", "sword", "hoe"]:
 		_draw_tool(img, color, name)
+	elif name.begins_with("spawn_egg"):
+		_draw_spawn_egg(img, color, name)
+	elif "realm_stone" in name:
+		_draw_realm_stone(img, color, name)
+	elif name == "glass_bottle" or name.ends_with("_bottle") and "potion" not in name:
+		_draw_potion(img, Color(0.75, 0.85, 0.95, 0.35), name)
+	elif "enchanted_book" in name:
+		_draw_book(img, Color(0.55, 0.25, 0.85))
+	elif name == "eye_of_ender":
+		_draw_ender_pearl(img, Color(0.35, 0.85, 0.45))
+	elif name == "end_crystal":
+		_draw_end_crystal_item(img)
 	elif "cake" in name:
 		_draw_cake(img, color)
 	elif "pumpkin_pie" in name:
@@ -616,24 +628,125 @@ func _draw_disc(img: Image, color: Color, name: String = ""):
 
 
 func _draw_tool(img: Image, color: Color, name: String):
-	# Griff
-	for y in range(10, 16):
-		for x in range(7, 9):
-			img.set_pixel(x, y, Color(0.4, 0.3, 0.2))
-	
-	# Kopf je nach Werkzeug
-	if "pickaxe" in name or "axe" in name:
-		for x in range(3, 13):
-			for y in range(3, 8):
+	var handle = Color(0.45, 0.30, 0.16)
+	# diagonal handle shared by all tools
+	for i in range(5, 16):
+		var x = i
+		var y = i
+		if x < 16 and y < 16:
+			img.set_pixel(x, y, handle)
+			if x > 0:
+				img.set_pixel(x - 1, y, handle.darkened(0.15))
+	if name.ends_with("_pickaxe") or name == "pickaxe":
+		# T-shaped pick head
+		for x in range(2, 11):
+			img.set_pixel(x, 3, color)
+			img.set_pixel(x, 4, color)
+		img.set_pixel(2, 5, color)
+		img.set_pixel(3, 5, color)
+		img.set_pixel(9, 5, color)
+		img.set_pixel(10, 5, color)
+	elif name.ends_with("_axe") or name == "axe":
+		# flat axe blade on one side
+		for y in range(1, 8):
+			for x in range(2, 8):
+				if x + y < 12:
+					img.set_pixel(x, y, color)
+		img.set_pixel(7, 2, color.lightened(0.2))
+	elif name.ends_with("_sword") or name == "sword":
+		for i in range(1, 11):
+			img.set_pixel(i, i, color)
+			if i + 1 < 16:
+				img.set_pixel(i + 1, i, color)
+		# guard
+		for x in range(7, 12):
+			img.set_pixel(x, 10, Color(0.7, 0.65, 0.4))
+	elif name.ends_with("_hoe") or name == "hoe":
+		for x in range(2, 9):
+			img.set_pixel(x, 3, color)
+		img.set_pixel(2, 4, color)
+		img.set_pixel(2, 5, color)
+	else:
+		# shovel blade
+		for x in range(4, 9):
+			for y in range(1, 6):
+				if abs(x - 6) + abs(y - 3) < 4:
+					img.set_pixel(x, y, color)
+
+
+func _draw_spawn_egg(img: Image, color: Color, name: String):
+	img.fill(Color(0, 0, 0, 0))
+	var spots = color.darkened(0.35)
+	var mob = name.replace("spawn_egg_", "")
+	var shell = _get_color(mob)
+	for x in range(4, 12):
+		for y in range(2, 14):
+			var dx = x - 7.5
+			var dy = (y - 8.0) * 0.75
+			if dx * dx + dy * dy < 16.0:
+				img.set_pixel(x, y, shell)
+	for i in range(8):
+		var sx = 5 + (i * 3) % 6
+		var sy = 4 + (i * 5) % 8
+		img.set_pixel(sx, sy, spots)
+
+
+func _draw_realm_stone(img: Image, color: Color, name: String):
+	img.fill(Color(0, 0, 0, 0))
+	var gem = color
+	if "chaos" in name: gem = Color(0.7, 0.1, 0.8)
+	elif "gaia" in name: gem = Color(0.2, 0.7, 0.25)
+	elif "tartaros" in name: gem = Color(0.45, 0.08, 0.08)
+	elif "nyx" in name: gem = Color(0.15, 0.1, 0.4)
+	elif "erebos" in name: gem = Color(0.08, 0.05, 0.12)
+	elif "aither" in name: gem = Color(0.7, 0.85, 1.0)
+	elif "hemera" in name: gem = Color(1.0, 0.92, 0.55)
+	elif "uranos" in name: gem = Color(0.45, 0.65, 0.95)
+	elif "chronos" in name: gem = Color(0.85, 0.75, 0.2)
+	elif "ananke" in name: gem = Color(0.55, 0.35, 0.7)
+	elif "zeus" in name: gem = Color(0.95, 0.9, 0.35)
+	elif "poseidon" in name: gem = Color(0.15, 0.45, 0.9)
+	elif "hades" in name: gem = Color(0.35, 0.1, 0.4)
+	elif "athena" in name: gem = Color(0.7, 0.75, 0.8)
+	elif "ares" in name: gem = Color(0.75, 0.12, 0.1)
+	elif "creation" in name: gem = Color(0.95, 0.95, 0.98)
+	elif "mania" in name: gem = Color(0.95, 0.3, 0.7)
+	elif "hera" in name: gem = Color(0.7, 0.4, 0.85)
+	elif "demeter" in name: gem = Color(0.55, 0.75, 0.2)
+	elif "hestia" in name: gem = Color(0.95, 0.5, 0.15)
+	elif "apollon" in name: gem = Color(1.0, 0.8, 0.2)
+	elif "artemis" in name: gem = Color(0.7, 0.85, 0.75)
+	elif "aphrodite" in name: gem = Color(0.95, 0.45, 0.65)
+	elif "hephaistos" in name: gem = Color(0.7, 0.35, 0.15)
+	elif "hermes" in name: gem = Color(0.45, 0.8, 0.45)
+	elif "dionysos" in name: gem = Color(0.55, 0.15, 0.45)
+	for x in range(3, 13):
+		for y in range(3, 13):
+			if abs(x - 8) + abs(y - 8) < 7:
+				img.set_pixel(x, y, gem)
+	img.set_pixel(8, 5, Color(1, 1, 1, 0.8))
+	img.set_pixel(7, 6, Color(1, 1, 1, 0.5))
+
+
+func _draw_end_crystal_item(img: Image):
+	img.fill(Color(0, 0, 0, 0))
+	for x in range(5, 11):
+		for y in range(4, 12):
+			if abs(x - 7.5) + abs(y - 8) < 5:
+				img.set_pixel(x, y, Color(0.85, 0.4, 0.95))
+	img.set_pixel(7, 7, Color(1, 1, 1))
+	img.set_pixel(8, 8, Color(1, 0.8, 1))
+
+
+func _draw_ender_pearl(img: Image, color: Color):
+	img.fill(Color(0, 0, 0, 0))
+	for x in range(4, 12):
+		for y in range(4, 12):
+			var dx = x - 7.5
+			var dy = y - 7.5
+			if dx * dx + dy * dy < 16:
 				img.set_pixel(x, y, color)
-	elif "sword" in name:
-		for x in range(6, 10):
-			for y in range(2, 10):
-				img.set_pixel(x, y, color)
-	else:  # Shovel
-		for x in range(5, 11):
-			for y in range(3, 9):
-				img.set_pixel(x, y, color)
+	img.set_pixel(6, 6, Color(0.8, 1, 0.85))
 
 
 func _draw_mob(img: Image, color: Color, name: String):

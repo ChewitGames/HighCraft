@@ -692,7 +692,7 @@
 		},
 		{
 			"id": "nether_portal",
-			"name": "Nether Portal",
+			"name": "Hell Portal",
 			"hardness": -1.0,
 			"tool": "none",
 			"tier": 0,
@@ -1173,6 +1173,380 @@
 			"solid": false,
 			"drops": [
 				"detector_rail"
+			]
+		},
+		{
+			"id": "farmland",
+			"name": "Farmland",
+			"hardness": 0.6,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"dirt"
+			]
+		},
+		{
+			"id": "farmland_moist",
+			"name": "Farmland",
+			"hardness": 0.6,
+			"tool": "shovel",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"dirt"
+			]
+		},
+		{
+			"id": "wheat_0",
+			"name": "Wheat",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"wheat_seeds"
+			]
+		},
+		{
+			"id": "wheat_1",
+			"name": "Wheat",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"wheat_seeds"
+			]
+		},
+		{
+			"id": "wheat_2",
+			"name": "Wheat",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"wheat_seeds"
+			]
+		},
+		{
+			"id": "wheat_3",
+			"name": "Wheat",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				[
+					"wheat",
+					1
+				],
+				[
+					"wheat_seeds",
+					1
+				]
+			]
+		},
+		{
+			"id": "carrots_0",
+			"name": "Carrots",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"carrot"
+			]
+		},
+		{
+			"id": "carrots_3",
+			"name": "Carrots",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				[
+					"carrot",
+					2
+				]
+			]
+		},
+		{
+			"id": "potatoes_0",
+			"name": "Potatoes",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"potato"
+			]
+		},
+		{
+			"id": "potatoes_3",
+			"name": "Potatoes",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				[
+					"potato",
+					2
+				]
+			]
+		},
+		{
+			"id": "nether_bricks",
+			"name": "Nether Bricks",
+			"hardness": 2.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": []
+		},
+		{
+			"id": "fire",
+			"name": "Fire",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 15,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
+			"id": "enchanting_table",
+			"name": "Enchanting Table",
+			"hardness": 5.0,
+			"tool": "pickaxe",
+			"tier": 1,
+			"light": 0,
+			"transparent": false,
+			"drops": [
+				"enchanting_table"
+			]
+		},
+		{
+			"id": "brewing_stand",
+			"name": "Brewing Stand",
+			"hardness": 0.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 1,
+			"transparent": true,
+			"solid": false,
+			"drops": ["brewing_stand"]
+		},
+		{
+			"id": "end_portal_frame",
+			"name": "End Portal Frame",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 1,
+			"transparent": false,
+			"solid": true,
+			"drops": []
+		},
+		{
+			"id": "end_portal_frame_filled",
+			"name": "End Portal Frame",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 1,
+			"transparent": false,
+			"solid": true,
+			"drops": []
+		},
+		{
+			"id": "end_crystal",
+			"name": "End Crystal",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 15,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
+			"id": "nether_brick_stairs",
+			"name": "Nether Brick Stairs",
+			"hardness": 2.0,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"nether_brick_stairs"
+			]
+		},
+		{
+			"id": "nether_wart",
+			"name": "Nether Wart",
+			"hardness": 0.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"nether_wart"
+			]
+		},
+		{
+			"id": "cobweb",
+			"name": "Cobweb",
+			"hardness": 4.0,
+			"tool": "sword",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
+			"id": "stone_bricks",
+			"name": "Stone Bricks",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"stone_bricks"
+			]
+		},
+		{
+			"id": "mossy_stone_bricks",
+			"name": "Mossy Stone Bricks",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"mossy_stone_bricks"
+			]
+		},
+		{
+			"id": "carved_pumpkin",
+			"name": "Carved Pumpkin",
+			"hardness": 1.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"carved_pumpkin"
+			]
+		},
+		{
+			"id": "wither_skeleton_skull",
+			"name": "Wither Skeleton Skull",
+			"hardness": 1.0,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": false,
+			"drops": [
+				"wither_skeleton_skull"
+			]
+		},
+		{
+			"id": "iron_bars",
+			"name": "Iron Bars",
+			"hardness": 5.0,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": true,
+			"solid": true,
+			"drops": [
+				"iron_bars"
+			]
+		},
+		{
+			"id": "oak_stairs",
+			"name": "Oak Stairs",
+			"hardness": 2.0,
+			"tool": "axe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"oak_stairs"
+			]
+		},
+		{
+			"id": "cobblestone_stairs",
+			"name": "Cobblestone Stairs",
+			"hardness": 2.0,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"cobblestone_stairs"
+			]
+		},
+		{
+			"id": "end_stone_bricks",
+			"name": "End Stone Bricks",
+			"hardness": 3.0,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"end_stone_bricks"
+			]
+		},
+		{
+			"id": "purpur_block",
+			"name": "Purpur Block",
+			"hardness": 1.5,
+			"tool": "pickaxe",
+			"tier": 0,
+			"light": 0,
+			"transparent": false,
+			"solid": true,
+			"drops": [
+				"purpur_block"
 			]
 		}
 	]

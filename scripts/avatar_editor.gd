@@ -1,592 +1,413 @@
 class_name AvatarEditor
 extends Control
-# HighCraft - Avatar / Skin Creator
-# Allows the player to customize Afro Steve style character:
-# Skin color, hair style, eye color, shirt, pants.
-# Skins are saved as JSON in user://skins/
+
+const Catalog = preload("res://scripts/avatar_catalog.gd")
+const PixelCanvas = preload("res://scripts/ui/avatar_pixel_canvas.gd")
 
 signal skin_saved(skin_data: Dictionary)
 signal closed()
 
-var skin_data: Dictionary = {
-	"skin_color": Color(0.55, 0.35, 0.2),
-	"hair_color": Color(0.08, 0.04, 0.0),
-	"eye_color": Color(0.2, 0.5, 0.9),
-	"shirt_color": Color(0.1, 0.55, 0.9),
-	"pants_color": Color(0.15, 0.15, 0.25),
-	"hair_style": 0,          # 0 = Afro, 1 = Short, 2 = Long, 3 = Bald
-	"name": "Afro Steve"
-}
-
+const CTRL_DELAY := 0.16
+const COLOR_KEYS := ["skin_color", "hair_color", "eye_color", "shirt_color", "pants_color", "cape_color", "hood_color", "cap_color", "pixel_color"]
+var skin_data := Catalog.defaults()
 var preview_model: Node3D
-var camera: Camera3D
-
-# UI elements
 var name_edit: LineEdit
-var skin_picker: ColorPickerButton
-var hair_picker: ColorPickerButton
-var eye_picker: ColorPickerButton
-var shirt_picker: ColorPickerButton
-var pants_picker: ColorPickerButton
-var hair_option: OptionButton
 var status_label: Label
-
-# Controller navigation
-var _ctrl_list: Array = []
-var _ctrl_idx: int = 0
-var _ctrl_cooldown: float = 0.0
-const _CTRL_DELAY := 0.18
-var _osk: OnScreenKeyboard = null
-# Hair-style / option submenu (controller)
-var _opt_panel: Panel = null
-var _opt_buttons: Array = []
-var _opt_focus: int = 0
-var _opt_target: OptionButton = null
-
+var controls: Array[Control] = []
+var control_index := 0
+var cooldown := 0.0
+var option_panel: Panel
+var option_scroll: ScrollContainer
+var option_target: OptionButton
+var option_buttons: Array[Button] = []
+var option_index := 0
+var color_panel: Panel
+var color_target := ""
+var color_sliders: Array[HSlider] = []
+var color_index := 0
+var pixel_panel: Panel
+var pixel_canvas: Control
+var osk: OnScreenKeyboard
+var active_joy_device := 0
+var main_scroll: ScrollContainer
+var preview_dragging := false
+var preview_last_mouse := Vector2.ZERO
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	set_process_input(true)
+	set_process(true)
 	_build_ui()
 	_build_preview()
-	_apply_to_preview()
-	# Start controller focus on first control
-	if not _ctrl_list.is_empty():
-		_ctrl_idx = 0
-		_ctrl_apply()
-
+	_refresh_preview()
+	_apply_focus()
 
 func _build_ui() -> void:
-	# Dark background
-	var bg = ColorRect.new()
-	bg.color = Color(0.08, 0.09, 0.12, 0.95)
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	var bg := ColorRect.new(); bg.color = Color(0.055, 0.065, 0.09, 0.98); bg.set_anchors_preset(Control.PRESET_FULL_RECT); add_child(bg)
+	var title := Label.new(); title.text = "HighCraft Character & Skin Creator"; title.add_theme_font_size_override("font_size", 28); title.position = Vector2(28, 14); add_child(title)
+	main_scroll = ScrollContainer.new(); main_scroll.position = Vector2(24, 58); main_scroll.size = Vector2(450, 610); main_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED; add_child(main_scroll)
+	var box := VBoxContainer.new(); box.custom_minimum_size = Vector2(420, 0); box.add_theme_constant_override("separation", 7); main_scroll.add_child(box)
+	controls.clear()
+	_add_name(box)
+	_add_option(box, "Gender / body", "gender", Catalog.GENDERS)
+	_add_option(box, "Age", "age", Catalog.AGES)
+	_add_option(box, "Body build", "build", Catalog.BUILDS)
+	_add_option(box, "Female chest size", "chest_size", Catalog.CHEST_SIZES)
+	_add_option(box, "Hair (shared by everyone)", "hair_style", Catalog.HAIRS)
+	_add_option(box, "Clothes (shared by everyone)", "outfit_style", Catalog.OUTFITS)
+	_add_option(box, "Cape", "cape_style", Catalog.CAPES)
+	_add_option(box, "Hood", "hood_style", Catalog.HOODS)
+	_add_option(box, "Cap / hat", "cap_style", Catalog.CAPS)
+	_add_option(box, "Beard (male body)", "beard_style", Catalog.BEARDS)
+	_add_option(box, "Glasses", "glasses_style", Catalog.GLASSES)
+	_add_option(box, "Mouth line", "mouth_style", Catalog.MOUTHS)
+	for pair in [["Skin", "skin_color"], ["Hair", "hair_color"], ["Eyes", "eye_color"], ["Clothes", "shirt_color"], ["Pants", "pants_color"], ["Cape", "cape_color"], ["Hood", "hood_color"], ["Cap", "cap_color"]]:
+		_add_color(box, pair[0], pair[1])
+	_add_button(box, "Pixel painting editor", _open_pixel_editor)
+	var row := HBoxContainer.new(); row.add_theme_constant_override("separation", 8); box.add_child(row)
+	var save_button := _add_button(row, "Save", _on_save)
+	var load_button := _add_button(row, "Load", _on_load)
+	var export_button := _add_button(row, "Export JSON", _on_export)
+	for button in [save_button, load_button, export_button]: button.set_meta("horizontal_group", "file_actions")
+	_add_button(box, "Close", _close_editor)
+	status_label = Label.new(); status_label.text = "Navigate: left stick/D-Pad | A select | B close | Rotate: right stick or mouse drag"; status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART; box.add_child(status_label)
 
-	var title = Label.new()
-	title.text = "HighCraft Avatar Creator"
-	title.add_theme_font_size_override("font_size", 32)
-	title.position = Vector2(40, 20)
-	add_child(title)
+func _add_name(parent: Container) -> void:
+	parent.add_child(_label("Name")); name_edit = LineEdit.new(); name_edit.text = skin_data.name; name_edit.focus_mode = Control.FOCUS_CLICK
+	name_edit.text_changed.connect(func(value: String): skin_data.name = value); parent.add_child(name_edit); controls.append(name_edit)
 
-	# === LEFT SIDE – CONTROLS ===
-	var left = VBoxContainer.new()
-	left.position = Vector2(40, 80)
-	left.custom_minimum_size = Vector2(320, 500)
-	left.add_theme_constant_override("separation", 12)
-	add_child(left)
+func _add_option(parent: Container, caption: String, key: String, values: Array) -> void:
+	parent.add_child(_label(caption)); var option := OptionButton.new(); option.focus_mode = Control.FOCUS_NONE; option.set_meta("data_key", key); option.set_meta("caption", caption)
+	for value in values: option.add_item(str(value))
+	option.selected = clampi(int(skin_data.get(key, 0)), 0, option.item_count - 1)
+	option.item_selected.connect(func(index: int): skin_data[key] = index; _refresh_preview())
+	parent.add_child(option); controls.append(option)
 
-	_ctrl_list.clear()
+func _add_color(parent: Container, caption: String, key: String) -> void:
+	var button := Button.new(); button.text = caption + " color"; button.focus_mode = Control.FOCUS_NONE; button.set_meta("color_key", key); button.set_meta("base_caption", button.text); button.modulate = skin_data[key]
+	button.pressed.connect(_open_color_editor.bind(key, caption)); parent.add_child(button); controls.append(button)
 
-	# Name
-	left.add_child(_make_label("Name:"))
-	name_edit = LineEdit.new()
-	name_edit.text = skin_data["name"]
-	name_edit.focus_mode = Control.FOCUS_NONE
-	name_edit.text_changed.connect(func(t): skin_data["name"] = t)
-	left.add_child(name_edit)
-	_ctrl_list.append(name_edit)
+func _add_button(parent: Container, caption: String, callback: Callable) -> Button:
+	var button := Button.new(); button.text = caption; button.set_meta("base_caption", caption); button.focus_mode = Control.FOCUS_NONE; button.pressed.connect(callback); parent.add_child(button); controls.append(button); return button
 
-	# Skin Color
-	left.add_child(_make_label("Skin Color:"))
-	skin_picker = ColorPickerButton.new()
-	skin_picker.color = skin_data["skin_color"]
-	skin_picker.focus_mode = Control.FOCUS_NONE
-	skin_picker.color_changed.connect(func(c):
-		skin_data["skin_color"] = c
-		_apply_to_preview()
-	)
-	left.add_child(skin_picker)
-	_ctrl_list.append(skin_picker)
-
-	# Hair Color
-	left.add_child(_make_label("Hair Color:"))
-	hair_picker = ColorPickerButton.new()
-	hair_picker.color = skin_data["hair_color"]
-	hair_picker.focus_mode = Control.FOCUS_NONE
-	hair_picker.color_changed.connect(func(c):
-		skin_data["hair_color"] = c
-		_apply_to_preview()
-	)
-	left.add_child(hair_picker)
-	_ctrl_list.append(hair_picker)
-
-	# Eye Color
-	left.add_child(_make_label("Eye Color:"))
-	eye_picker = ColorPickerButton.new()
-	eye_picker.color = skin_data["eye_color"]
-	eye_picker.focus_mode = Control.FOCUS_NONE
-	eye_picker.color_changed.connect(func(c):
-		skin_data["eye_color"] = c
-		_apply_to_preview()
-	)
-	left.add_child(eye_picker)
-	_ctrl_list.append(eye_picker)
-
-	# Shirt
-	left.add_child(_make_label("Shirt Color:"))
-	shirt_picker = ColorPickerButton.new()
-	shirt_picker.color = skin_data["shirt_color"]
-	shirt_picker.focus_mode = Control.FOCUS_NONE
-	shirt_picker.color_changed.connect(func(c):
-		skin_data["shirt_color"] = c
-		_apply_to_preview()
-	)
-	left.add_child(shirt_picker)
-	_ctrl_list.append(shirt_picker)
-
-	# Pants
-	left.add_child(_make_label("Pants Color:"))
-	pants_picker = ColorPickerButton.new()
-	pants_picker.color = skin_data["pants_color"]
-	pants_picker.focus_mode = Control.FOCUS_NONE
-	pants_picker.color_changed.connect(func(c):
-		skin_data["pants_color"] = c
-		_apply_to_preview()
-	)
-	left.add_child(pants_picker)
-	_ctrl_list.append(pants_picker)
-
-	# Hair Style
-	left.add_child(_make_label("Hair Style:"))
-	hair_option = OptionButton.new()
-	hair_option.add_item("Afro")
-	hair_option.add_item("Short")
-	hair_option.add_item("Long")
-	hair_option.add_item("Bald")
-	hair_option.selected = skin_data["hair_style"]
-	hair_option.focus_mode = Control.FOCUS_NONE  # our submenu handles controller
-	hair_option.item_selected.connect(func(i):
-		skin_data["hair_style"] = i
-		_apply_to_preview()
-	)
-	left.add_child(hair_option)
-	_ctrl_list.append(hair_option)
-
-	# Buttons
-	var btn_row = HBoxContainer.new()
-	btn_row.add_theme_constant_override("separation", 10)
-	left.add_child(btn_row)
-
-	var save_btn = Button.new()
-	save_btn.text = "Save Skin"
-	save_btn.focus_mode = Control.FOCUS_NONE
-	save_btn.pressed.connect(_on_save)
-	btn_row.add_child(save_btn)
-	_ctrl_list.append(save_btn)
-
-	var load_btn = Button.new()
-	load_btn.text = "Load Skin"
-	load_btn.focus_mode = Control.FOCUS_NONE
-	load_btn.pressed.connect(_on_load)
-	btn_row.add_child(load_btn)
-	_ctrl_list.append(load_btn)
-
-	var export_btn = Button.new()
-	export_btn.text = "Export JSON"
-	export_btn.focus_mode = Control.FOCUS_NONE
-	export_btn.pressed.connect(_on_export)
-	btn_row.add_child(export_btn)
-	_ctrl_list.append(export_btn)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.focus_mode = Control.FOCUS_NONE
-	close_btn.pressed.connect(func():
-		closed.emit()
-		queue_free()
-	)
-	left.add_child(close_btn)
-	_ctrl_list.append(close_btn)
-
-	status_label = Label.new()
-	status_label.text = "Controller: D-Pad navigate  |  A open / confirm  |  B close"
-	left.add_child(status_label)
-
-
-func _make_label(txt: String) -> Label:
-	var l = Label.new()
-	l.text = txt
-	return l
-
-
-func _ctrl_apply() -> void:
-	if _ctrl_list.is_empty():
-		return
-	_ctrl_idx = clampi(_ctrl_idx, 0, _ctrl_list.size() - 1)
-	for i in range(_ctrl_list.size()):
-		var c: Control = _ctrl_list[i]
-		if not is_instance_valid(c):
-			continue
-		# Visual only — never grab_focus (would steal A / ui_accept from our handler)
-		c.modulate = Color(1.4, 1.35, 0.55) if i == _ctrl_idx else Color(1, 1, 1)
-
-
-func _ctrl_move(delta: int) -> void:
-	if _ctrl_list.is_empty():
-		return
-	_ctrl_idx = posmod(_ctrl_idx + delta, _ctrl_list.size())
-	_ctrl_apply()
-
-
-func _ctrl_activate() -> void:
-	if _ctrl_list.is_empty():
-		return
-	var c = _ctrl_list[_ctrl_idx]
-	# Order matters: OptionButton + ColorPickerButton both extend Button in Godot 4
-	if c is OptionButton:
-		_open_option_menu(c as OptionButton)
-	elif c is ColorPickerButton:
-		var cp: ColorPickerButton = c
-		var col = cp.color
-		col.h = fmod(col.h + 0.08, 1.0)
-		cp.color = col
-		cp.color_changed.emit(col)
-	elif c is Button:
-		(c as Button).pressed.emit()
-	elif c is LineEdit:
-		_open_text_osk(c as LineEdit)
-
-
-func _open_option_menu(ob: OptionButton) -> void:
-	if ob == null or not is_instance_valid(ob):
-		return
-	_close_option_menu(false)
-	_opt_target = ob
-	_opt_focus = clampi(ob.selected, 0, maxi(ob.item_count - 1, 0))
-	_opt_buttons.clear()
-
-	# CanvasLayer so the menu is always visible above preview / other UI
-	var layer := CanvasLayer.new()
-	layer.layer = 250
-	layer.name = "OptionSubmenuLayer"
-	add_child(layer)
-
-	_opt_panel = Panel.new()
-	_opt_panel.name = "OptionSubmenu"
-	var h := float(50 + ob.item_count * 48)
-	_opt_panel.size = Vector2(300, h)
-	# Center on screen
-	var vp_size := get_viewport().get_visible_rect().size
-	_opt_panel.position = (vp_size - _opt_panel.size) * 0.5
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0.08, 0.09, 0.12, 0.98)
-	bg.border_color = Color(0.7, 0.65, 0.3)
-	bg.set_border_width_all(3)
-	_opt_panel.add_theme_stylebox_override("panel", bg)
-	layer.add_child(_opt_panel)
-	# Keep a back-ref so close can free the layer
-	_opt_panel.set_meta("layer", layer)
-
-	var vb := VBoxContainer.new()
-	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vb.offset_left = 14
-	vb.offset_top = 12
-	vb.offset_right = -14
-	vb.offset_bottom = -12
-	vb.add_theme_constant_override("separation", 8)
-	_opt_panel.add_child(vb)
-
-	var title := Label.new()
-	title.text = "Select Hair Style"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	vb.add_child(title)
-
-	var hint := Label.new()
-	hint.text = "D-Pad / A select  |  B cancel"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vb.add_child(hint)
-
-	for i in range(ob.item_count):
-		var b := Button.new()
-		b.text = ob.get_item_text(i)
-		b.focus_mode = Control.FOCUS_NONE
-		b.custom_minimum_size = Vector2(0, 40)
-		var idx := i
-		b.pressed.connect(func():
-			_pick_option(idx)
-		)
-		vb.add_child(b)
-		_opt_buttons.append(b)
-	_opt_focus_apply()
-	if has_node("/root/Audio") or Engine.has_singleton("Audio"):
-		pass
-	# Soft click if Audio autoload exists
-	if is_instance_valid(get_tree().root.get_node_or_null("Audio")):
-		get_tree().root.get_node("Audio").play("click", -12.0)
-
-
-func _opt_focus_apply() -> void:
-	if _opt_buttons.is_empty():
-		return
-	_opt_focus = clampi(_opt_focus, 0, _opt_buttons.size() - 1)
-	for i in range(_opt_buttons.size()):
-		var b: Control = _opt_buttons[i]
-		if is_instance_valid(b):
-			b.modulate = Color(1.45, 1.35, 0.5) if i == _opt_focus else Color(1, 1, 1)
-
-
-func _opt_move(delta: int) -> void:
-	if _opt_buttons.is_empty():
-		return
-	_opt_focus = posmod(_opt_focus + delta, _opt_buttons.size())
-	_opt_focus_apply()
-
-
-func _pick_option(idx: int) -> void:
-	if _opt_target != null and is_instance_valid(_opt_target):
-		_opt_target.selected = idx
-		_opt_target.item_selected.emit(idx)
-	_close_option_menu(true)
-
-
-func _close_option_menu(_selected: bool = false) -> void:
-	if _opt_panel != null and is_instance_valid(_opt_panel):
-		if _opt_panel.has_meta("layer"):
-			var layer = _opt_panel.get_meta("layer")
-			if is_instance_valid(layer):
-				layer.queue_free()
-		else:
-			_opt_panel.queue_free()
-	_opt_panel = null
-	_opt_buttons.clear()
-	_opt_focus = 0
-	_opt_target = null
-
-
-func _option_menu_open() -> bool:
-	return _opt_panel != null and is_instance_valid(_opt_panel)
-
-
-func _open_text_osk(edit: LineEdit) -> void:
-	if edit == null or not is_instance_valid(edit):
-		return
-	if _osk != null and is_instance_valid(_osk):
-		_osk.close(false)
-		_osk = null
-	_osk = OnScreenKeyboard.new()
-	add_child(_osk)
-	_osk.done.connect(func(_t): _osk = null)
-	_osk.cancelled.connect(func(): _osk = null)
-	_osk.open(edit)
-
-
-func _input(event: InputEvent) -> void:
-	# While OSK is open it handles controller itself
-	if _osk != null and is_instance_valid(_osk) and _osk.is_open():
-		return
-
-	if _ctrl_cooldown > 0.0:
-		_ctrl_cooldown -= get_process_delta_time()
-
-	# --- Hair style / option submenu ---
-	if _option_menu_open():
-		if event is InputEventJoypadMotion and _ctrl_cooldown <= 0.0:
-			if event.axis == 1 and absf(event.axis_value) > 0.5:
-				_opt_move(1 if event.axis_value > 0.0 else -1)
-				_ctrl_cooldown = _CTRL_DELAY
-				if get_viewport(): get_viewport().set_input_as_handled()
-			return
-		if event is InputEventJoypadButton and event.pressed:
-			var obtn: int = event.button_index
-			if obtn == JOY_BUTTON_DPAD_UP or obtn == 11:
-				_opt_move(-1)
-			elif obtn == JOY_BUTTON_DPAD_DOWN or obtn == 12:
-				_opt_move(1)
-			elif obtn == JOY_BUTTON_A or obtn == 0:
-				_pick_option(_opt_focus)
-			elif obtn == JOY_BUTTON_B or obtn == 1:
-				_close_option_menu(false)
-			else:
-				return
-			if get_viewport(): get_viewport().set_input_as_handled()
-		return
-
-	if event is InputEventJoypadMotion:
-		if _ctrl_cooldown <= 0.0 and absf(event.axis_value) > 0.5 and event.axis == 1:
-			_ctrl_move(1 if event.axis_value > 0.0 else -1)
-			_ctrl_cooldown = _CTRL_DELAY
-			if is_inside_tree() and get_viewport() != null:
-				get_viewport().set_input_as_handled()
-		return
-
-	if not (event is InputEventJoypadButton and event.pressed):
-		return
-
-	var btn: int = event.button_index
-	if btn == JOY_BUTTON_DPAD_UP or btn == 11:
-		_ctrl_move(-1)
-	elif btn == JOY_BUTTON_DPAD_DOWN or btn == 12:
-		_ctrl_move(1)
-	elif btn == JOY_BUTTON_A or btn == 0:
-		_ctrl_activate()
-	elif btn == JOY_BUTTON_B or btn == 1:
-		closed.emit()
-		queue_free()
-	else:
-		return
-	if is_inside_tree() and get_viewport() != null:
-		get_viewport().set_input_as_handled()
-
+func _label(value: String) -> Label:
+	var result := Label.new(); result.text = value; return result
 
 func _build_preview() -> void:
-	# Simple 3D preview viewport
-	var vp_container = SubViewportContainer.new()
-	vp_container.position = Vector2(420, 80)
-	vp_container.custom_minimum_size = Vector2(500, 500)
-	vp_container.stretch = true
-	add_child(vp_container)
+	var container := SubViewportContainer.new(); container.position = Vector2(500, 75); container.size = Vector2(740, 575); container.stretch = true; add_child(container)
+	container.mouse_filter = Control.MOUSE_FILTER_STOP
+	container.gui_input.connect(_on_preview_mouse_input)
+	var viewport := SubViewport.new(); viewport.size = Vector2i(740, 575); viewport.transparent_bg = true; container.add_child(viewport)
+	var world := Node3D.new(); viewport.add_child(world)
+	var light := DirectionalLight3D.new(); light.rotation_degrees = Vector3(-45, 35, 0); light.light_energy = 1.4; world.add_child(light)
+	var camera := Camera3D.new(); camera.position = Vector3(0, 1.35, 3.4); camera.look_at(Vector3(0, 1.15, 0)); world.add_child(camera)
+	preview_model = Node3D.new(); preview_model.name = "PreviewModel"; world.add_child(preview_model)
+	# Runtime avatars face -Z. Rotate only the preview so its front faces the +Z camera.
+	preview_model.rotation_degrees.y = 180.0
 
-	var vp = SubViewport.new()
-	vp.size = Vector2i(500, 500)
-	vp.transparent_bg = true
-	vp_container.add_child(vp)
+func _refresh_preview() -> void:
+	if preview_model == null: return
+	for child in preview_model.get_children(): child.free()
+	AvatarLoader.populate_model(preview_model, skin_data, true)
+	for control in controls:
+		if control.has_meta("color_key"):
+			control.modulate = Color.WHITE if control == controls[control_index] else skin_data[control.get_meta("color_key")]
 
-	var world = Node3D.new()
-	vp.add_child(world)
+func _apply_focus() -> void:
+	if controls.is_empty(): return
+	control_index = clampi(control_index, 0, controls.size() - 1)
+	for i in range(controls.size()):
+		var control := controls[i]
+		var selected := i == control_index
+		control.self_modulate = Color.WHITE
+		if selected:
+			var focus_style := StyleBoxFlat.new()
+			focus_style.bg_color = Color(0.28, 0.22, 0.045, 1.0)
+			focus_style.border_color = Color(1.0, 0.82, 0.12, 1.0)
+			focus_style.set_border_width_all(4)
+			focus_style.set_corner_radius_all(5)
+			control.add_theme_stylebox_override("normal", focus_style)
+		else:
+			control.remove_theme_stylebox_override("normal")
+		if control.has_meta("color_key"):
+			# Never multiply the focus highlight by a dark chosen color.
+			control.modulate = Color.WHITE if selected else skin_data[control.get_meta("color_key")]
+		if control is Button and not control is OptionButton and control.has_meta("base_caption"):
+			(control as Button).text = (">  " if selected else "") + str(control.get_meta("base_caption"))
+	var current := controls[control_index]
+	if main_scroll:
+		# Works for nested controls too (Save/Load/Export live inside an HBox).
+		main_scroll.call_deferred("ensure_control_visible", current)
 
-	# Light
-	var light = DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-40, 30, 0)
-	world.add_child(light)
+func _move_focus(delta: int) -> void:
+	control_index = posmod(control_index + delta, controls.size()); _apply_focus()
 
-	# Camera
-	camera = Camera3D.new()
-	camera.position = Vector3(0, 1.4, 3.5)
-	camera.look_at(Vector3(0, 1.2, 0))
-	world.add_child(camera)
+func _move_horizontal_focus(delta: int) -> bool:
+	if controls.is_empty() or not controls[control_index].has_meta("horizontal_group"): return false
+	var group = controls[control_index].get_meta("horizontal_group")
+	var group_indices: Array[int] = []
+	for i in range(controls.size()):
+		if controls[i].get_meta("horizontal_group", null) == group: group_indices.append(i)
+	if group_indices.is_empty(): return false
+	var position := group_indices.find(control_index)
+	if position < 0: return false
+	control_index = group_indices[posmod(position + delta, group_indices.size())]
+	_apply_focus()
+	return true
 
-	# Preview model root
-	preview_model = Node3D.new()
-	preview_model.name = "PreviewModel"
-	world.add_child(preview_model)
+func _activate() -> void:
+	var current := controls[control_index]
+	if current is OptionButton: _open_option(current)
+	elif current is LineEdit: _open_osk(current)
+	elif current is Button: (current as Button).pressed.emit()
 
+func _open_option(target: OptionButton) -> void:
+	_close_option()
+	option_target = target; option_index = target.selected; option_buttons.clear()
+	var overlay := _create_modal_overlay(1000)
+	option_panel = Panel.new(); option_panel.size = Vector2(400, minf(600.0, 105.0 + target.item_count * 38.0)); option_panel.position = (get_viewport_rect().size - option_panel.size) * 0.5; option_panel.set_meta("overlay", overlay); overlay.add_child(option_panel)
+	option_scroll = ScrollContainer.new(); option_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); option_panel.add_child(option_scroll)
+	var box := VBoxContainer.new(); box.custom_minimum_size.x = 370; option_scroll.add_child(box)
+	var title := _label("Select " + str(target.get_meta("caption", "option"))); title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER; box.add_child(title)
+	for i in range(target.item_count):
+		var button := Button.new(); button.text = target.get_item_text(i); button.focus_mode = Control.FOCUS_NONE; button.pressed.connect(_pick_option.bind(i)); box.add_child(button); option_buttons.append(button)
+	_apply_option_focus()
 
-func _apply_to_preview() -> void:
-	if preview_model == null:
-		return
+func _apply_option_focus() -> void:
+	option_index = clampi(option_index, 0, option_buttons.size() - 1)
+	for i in range(option_buttons.size()): option_buttons[i].modulate = Color(1.45, 1.3, 0.45) if i == option_index else Color.WHITE
+	if option_scroll: option_scroll.scroll_vertical = maxi(0, option_index * 38 - 220)
 
-	# Clear old meshes
-	for c in preview_model.get_children():
-		c.queue_free()
+func _pick_option(index: int) -> void:
+	option_target.selected = index; option_target.item_selected.emit(index); _close_option()
 
-	var skin = skin_data["skin_color"]
-	var hair = skin_data["hair_color"]
-	var eyes = skin_data["eye_color"]
-	var shirt = skin_data["shirt_color"]
-	var pants = skin_data["pants_color"]
-	var style = int(skin_data["hair_style"])
+func _close_option() -> void:
+	if option_panel and is_instance_valid(option_panel):
+		var overlay = option_panel.get_meta("overlay", null)
+		if overlay and is_instance_valid(overlay): overlay.queue_free()
+	option_panel = null; option_scroll = null; option_target = null; option_buttons.clear()
 
-	# Head
-	_add_box(preview_model, Vector3(0.55, 0.55, 0.55), Vector3(0, 1.75, 0), skin)
+func _open_color_editor(key: String, caption: String) -> void:
+	_close_color()
+	color_target = key; color_index = 0; color_sliders.clear()
+	var overlay := _create_modal_overlay(1200)
+	color_panel = Panel.new(); color_panel.size = Vector2(480, 300); color_panel.position = (get_viewport_rect().size - color_panel.size) * 0.5; color_panel.set_meta("overlay", overlay); overlay.add_child(color_panel)
+	var box := VBoxContainer.new(); box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); box.offset_left = 24; box.offset_right = -24; box.offset_top = 18; box.offset_bottom = -18; color_panel.add_child(box)
+	box.add_child(_label(caption + " color — left/right changes the selected slider"))
+	var color: Color = skin_data[key]
+	for entry in [["Hue", color.h], ["Saturation", color.s], ["Brightness", color.v]]:
+		box.add_child(_label(entry[0])); var slider := HSlider.new(); slider.min_value = 0; slider.max_value = 1; slider.step = 0.01; slider.value = entry[1]; slider.focus_mode = Control.FOCUS_NONE; slider.value_changed.connect(_color_changed); box.add_child(slider); color_sliders.append(slider)
+	box.add_child(_label("Controller: up/down slider | left/right value | A/B finish")); _apply_color_focus()
 
-	# Eyes
-	_add_box(preview_model, Vector3(0.12, 0.08, 0.05), Vector3(-0.12, 1.8, 0.28), eyes)
-	_add_box(preview_model, Vector3(0.12, 0.08, 0.05), Vector3(0.12, 1.8, 0.28), eyes)
+func _apply_color_focus() -> void:
+	for i in range(color_sliders.size()): color_sliders[i].modulate = Color(1.45, 1.3, 0.45) if i == color_index else Color.WHITE
 
-	# Hair
-	match style:
-		0: # Afro
-			_add_sphere(preview_model, 0.42, Vector3(0, 2.05, 0), hair)
-		1: # Short
-			_add_box(preview_model, Vector3(0.58, 0.18, 0.58), Vector3(0, 2.05, 0), hair)
-		2: # Long
-			_add_box(preview_model, Vector3(0.58, 0.35, 0.58), Vector3(0, 2.1, 0), hair)
-			_add_box(preview_model, Vector3(0.5, 0.6, 0.25), Vector3(0, 1.6, -0.35), hair)
-		3: # Bald
-			pass
+func _color_changed(_value: float) -> void:
+	if color_sliders.size() != 3: return
+	skin_data[color_target] = Color.from_hsv(color_sliders[0].value, color_sliders[1].value, color_sliders[2].value); _refresh_preview()
 
-	# Body (shirt)
-	_add_box(preview_model, Vector3(0.55, 0.85, 0.3), Vector3(0, 1.1, 0), shirt)
+func _close_color() -> void:
+	if color_panel and is_instance_valid(color_panel):
+		var overlay = color_panel.get_meta("overlay", null)
+		if overlay and is_instance_valid(overlay): overlay.queue_free()
+	color_panel = null; color_sliders.clear(); color_target = ""
 
-	# Arms
-	_add_box(preview_model, Vector3(0.22, 0.75, 0.22), Vector3(-0.42, 1.1, 0), skin)
-	_add_box(preview_model, Vector3(0.22, 0.75, 0.22), Vector3(0.42, 1.1, 0), skin)
+func _open_pixel_editor() -> void:
+	_close_pixel_editor()
+	var overlay := _create_modal_overlay(1100)
+	pixel_panel = Panel.new(); pixel_panel.position = Vector2(24, 70); pixel_panel.size = Vector2(460, 580); pixel_panel.set_meta("overlay", overlay); overlay.add_child(pixel_panel)
+	var box := VBoxContainer.new(); box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT); box.offset_left = 6; box.offset_right = -6; box.offset_top = 6; box.offset_bottom = -6; pixel_panel.add_child(box)
+	box.add_child(_label("Pixel painting — right stick rotates the 3D skin"))
+	pixel_canvas = PixelCanvas.new(); pixel_canvas.set_pixels(skin_data.pixels); pixel_canvas.paint_color = skin_data.pixel_color; pixel_canvas.changed.connect(func(value: Array): skin_data.pixels = value.duplicate(true); _refresh_preview()); box.add_child(pixel_canvas)
+	var color_button := Button.new(); color_button.text = "Paint color (controller sliders)"; color_button.focus_mode = Control.FOCUS_NONE; color_button.pressed.connect(_open_color_editor.bind("pixel_color", "Paint")); box.add_child(color_button)
+	box.add_child(_label("Left stick: cursor | A: paint | X: reset | B: finish | Right stick: rotate"))
 
-	# Legs (pants)
-	_add_box(preview_model, Vector3(0.26, 0.85, 0.26), Vector3(-0.18, 0.45, 0), pants)
-	_add_box(preview_model, Vector3(0.26, 0.85, 0.26), Vector3(0.18, 0.45, 0), pants)
+func _close_pixel_editor() -> void:
+	if pixel_panel and is_instance_valid(pixel_panel):
+		var overlay = pixel_panel.get_meta("overlay", null)
+		if overlay and is_instance_valid(overlay): overlay.queue_free()
+	pixel_panel = null; pixel_canvas = null
 
+func _create_modal_overlay(order: int) -> Control:
+	var overlay := Control.new()
+	overlay.name = "AvatarModalOverlay"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.z_index = order
+	var shade := ColorRect.new()
+	shade.color = Color(0.01, 0.015, 0.025, 0.72)
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.add_child(shade)
+	add_child(overlay)
+	return overlay
 
-func _add_box(parent: Node3D, size: Vector3, pos: Vector3, col: Color) -> void:
-	var mi = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = size
-	mi.mesh = mesh
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = col
-	mi.material_override = mat
-	mi.position = pos
-	parent.add_child(mi)
+func _open_osk(edit: LineEdit) -> void:
+	osk = OnScreenKeyboard.new(); add_child(osk); osk.done.connect(func(_value): osk = null); osk.cancelled.connect(func(): osk = null); osk.open(edit)
 
+func _process(delta: float) -> void:
+	cooldown = maxf(0.0, cooldown - delta)
+	var rotate := Vector2(Input.get_joy_axis(active_joy_device, JOY_AXIS_RIGHT_X), Input.get_joy_axis(active_joy_device, JOY_AXIS_RIGHT_Y))
+	if rotate.length() > 0.2 and preview_model: preview_model.rotation_degrees += Vector3(rotate.y * 85.0 * delta, rotate.x * 110.0 * delta, 0)
 
-func _add_sphere(parent: Node3D, radius: float, pos: Vector3, col: Color) -> void:
-	var mi = MeshInstance3D.new()
-	var mesh = SphereMesh.new()
-	mesh.radius = radius
-	mesh.height = radius * 1.3
-	mi.mesh = mesh
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = col
-	mi.material_override = mat
-	mi.position = pos
-	parent.add_child(mi)
+func _on_preview_mouse_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		preview_dragging = event.pressed
+		preview_last_mouse = event.position
+		mouse_default_cursor_shape = Control.CURSOR_DRAG if preview_dragging else Control.CURSOR_ARROW
+	elif event is InputEventMouseMotion and preview_dragging and preview_model:
+		var movement = event.position - preview_last_mouse
+		preview_last_mouse = event.position
+		preview_model.rotation_degrees += Vector3(movement.y * 0.35, movement.x * 0.45, 0)
 
+func _input(event: InputEvent) -> void:
+	if osk and is_instance_valid(osk) and osk.is_open(): return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if color_panel and is_instance_valid(color_panel):
+			_handle_color_keyboard(event)
+			return
+		if pixel_panel and is_instance_valid(pixel_panel):
+			_handle_pixel_keyboard(event)
+			return
+		if option_panel and is_instance_valid(option_panel) and event.keycode == KEY_ESCAPE:
+			_close_option(); get_viewport().set_input_as_handled(); return
+		if event.keycode == KEY_ESCAPE:
+			if name_edit and name_edit.has_focus(): name_edit.release_focus()
+			_close_editor()
+			get_viewport().set_input_as_handled()
+			return
+	if not _is_controller_event(event): return
+	active_joy_device = maxi(event.device, 0)
+	if color_panel and is_instance_valid(color_panel): _handle_color_input(event); return
+	if pixel_panel and is_instance_valid(pixel_panel): _handle_pixel_input(event); return
+	if option_panel and is_instance_valid(option_panel): _handle_option_input(event); return
+	_handle_main_input(event)
+
+func _is_controller_event(event: InputEvent) -> bool:
+	return event is InputEventJoypadButton or event is InputEventJoypadMotion
+
+func _axis_step(event: InputEvent, axis: int) -> int:
+	if event is InputEventJoypadMotion and event.axis == axis and absf(event.axis_value) > 0.55 and cooldown <= 0.0:
+		cooldown = CTRL_DELAY; return 1 if event.axis_value > 0 else -1
+	return 0
+
+func _button(event: InputEvent, index: int) -> bool:
+	return event is InputEventJoypadButton and event.pressed and event.button_index == index
+
+func _handle_main_input(event: InputEvent) -> void:
+	var step := _axis_step(event, JOY_AXIS_LEFT_Y)
+	var horizontal := _axis_step(event, JOY_AXIS_LEFT_X)
+	if step != 0: _move_focus(step)
+	elif horizontal != 0 and _move_horizontal_focus(horizontal): pass
+	elif _button(event, JOY_BUTTON_DPAD_UP): _move_focus(-1)
+	elif _button(event, JOY_BUTTON_DPAD_DOWN): _move_focus(1)
+	elif _button(event, JOY_BUTTON_DPAD_LEFT) and _move_horizontal_focus(-1): pass
+	elif _button(event, JOY_BUTTON_DPAD_RIGHT) and _move_horizontal_focus(1): pass
+	elif _button(event, JOY_BUTTON_A): _activate()
+	elif _button(event, JOY_BUTTON_B): _close_editor()
+	else: return
+	get_viewport().set_input_as_handled()
+
+func _handle_option_input(event: InputEvent) -> void:
+	var step := _axis_step(event, JOY_AXIS_LEFT_Y)
+	if step != 0: option_index = posmod(option_index + step, option_buttons.size()); _apply_option_focus()
+	elif _button(event, JOY_BUTTON_DPAD_UP): option_index = posmod(option_index - 1, option_buttons.size()); _apply_option_focus()
+	elif _button(event, JOY_BUTTON_DPAD_DOWN): option_index = posmod(option_index + 1, option_buttons.size()); _apply_option_focus()
+	elif _button(event, JOY_BUTTON_A): _pick_option(option_index)
+	elif _button(event, JOY_BUTTON_B): _close_option()
+	else: return
+	get_viewport().set_input_as_handled()
+
+func _handle_color_input(event: InputEvent) -> void:
+	var vertical := _axis_step(event, JOY_AXIS_LEFT_Y); var horizontal := _axis_step(event, JOY_AXIS_LEFT_X)
+	if vertical != 0: color_index = posmod(color_index + vertical, 3); _apply_color_focus()
+	elif horizontal != 0: color_sliders[color_index].value = clampf(color_sliders[color_index].value + horizontal * 0.025, 0, 1)
+	elif _button(event, JOY_BUTTON_DPAD_UP): color_index = posmod(color_index - 1, 3); _apply_color_focus()
+	elif _button(event, JOY_BUTTON_DPAD_DOWN): color_index = posmod(color_index + 1, 3); _apply_color_focus()
+	elif _button(event, JOY_BUTTON_DPAD_LEFT): color_sliders[color_index].value = maxf(0, color_sliders[color_index].value - 0.025)
+	elif _button(event, JOY_BUTTON_DPAD_RIGHT): color_sliders[color_index].value = minf(1, color_sliders[color_index].value + 0.025)
+	elif _button(event, JOY_BUTTON_A) or _button(event, JOY_BUTTON_B):
+		_close_color()
+		if pixel_canvas: pixel_canvas.paint_color = skin_data.pixel_color
+	else: return
+	get_viewport().set_input_as_handled()
+
+func _handle_pixel_input(event: InputEvent) -> void:
+	var x := _axis_step(event, JOY_AXIS_LEFT_X); var y := _axis_step(event, JOY_AXIS_LEFT_Y)
+	if x != 0: pixel_canvas.move_cursor(Vector2i(x, 0))
+	elif y != 0: pixel_canvas.move_cursor(Vector2i(0, y))
+	elif _button(event, JOY_BUTTON_DPAD_LEFT): pixel_canvas.move_cursor(Vector2i.LEFT)
+	elif _button(event, JOY_BUTTON_DPAD_RIGHT): pixel_canvas.move_cursor(Vector2i.RIGHT)
+	elif _button(event, JOY_BUTTON_DPAD_UP): pixel_canvas.move_cursor(Vector2i.UP)
+	elif _button(event, JOY_BUTTON_DPAD_DOWN): pixel_canvas.move_cursor(Vector2i.DOWN)
+	elif _button(event, JOY_BUTTON_A): pixel_canvas.paint_cursor()
+	elif _button(event, JOY_BUTTON_X): pixel_canvas.reset_pixels()
+	elif _button(event, JOY_BUTTON_Y): _open_color_editor("pixel_color", "Paint")
+	elif _button(event, JOY_BUTTON_B): _close_pixel_editor()
+	else: return
+	get_viewport().set_input_as_handled()
+
+func _handle_pixel_keyboard(event: InputEventKey) -> void:
+	match event.keycode:
+		KEY_ESCAPE, KEY_B:
+			_close_pixel_editor()
+		KEY_X:
+			pixel_canvas.reset_pixels()
+		KEY_LEFT:
+			pixel_canvas.move_cursor(Vector2i.LEFT)
+		KEY_RIGHT:
+			pixel_canvas.move_cursor(Vector2i.RIGHT)
+		KEY_UP:
+			pixel_canvas.move_cursor(Vector2i.UP)
+		KEY_DOWN:
+			pixel_canvas.move_cursor(Vector2i.DOWN)
+		KEY_SPACE, KEY_ENTER:
+			pixel_canvas.paint_cursor()
+		KEY_Y, KEY_C:
+			_open_color_editor("pixel_color", "Paint")
+		_:
+			return
+	get_viewport().set_input_as_handled()
+
+func _handle_color_keyboard(event: InputEventKey) -> void:
+	match event.keycode:
+		KEY_ESCAPE, KEY_B, KEY_ENTER:
+			_close_color()
+			if pixel_canvas: pixel_canvas.paint_color = skin_data.pixel_color
+		KEY_UP:
+			color_index = posmod(color_index - 1, 3); _apply_color_focus()
+		KEY_DOWN:
+			color_index = posmod(color_index + 1, 3); _apply_color_focus()
+		KEY_LEFT:
+			color_sliders[color_index].value = maxf(0, color_sliders[color_index].value - 0.025)
+		KEY_RIGHT:
+			color_sliders[color_index].value = minf(1, color_sliders[color_index].value + 0.025)
+		_:
+			return
+	get_viewport().set_input_as_handled()
+
+func _serialize() -> Dictionary:
+	var data := skin_data.duplicate(true)
+	for key in COLOR_KEYS:
+		var color: Color = data[key]; data[key] = [color.r, color.g, color.b, color.a]
+	return data
 
 func _on_save() -> void:
-	var path = "user://skins/" + skin_data["name"].replace(" ", "_").to_lower() + ".json"
 	DirAccess.make_dir_recursive_absolute("user://skins")
-	var f = FileAccess.open(path, FileAccess.WRITE)
-	if f:
-		# Convert Colors to arrays for JSON
-		var data = {
-			"name": skin_data["name"],
-			"skin_color": [skin_data["skin_color"].r, skin_data["skin_color"].g, skin_data["skin_color"].b],
-			"hair_color": [skin_data["hair_color"].r, skin_data["hair_color"].g, skin_data["hair_color"].b],
-			"eye_color": [skin_data["eye_color"].r, skin_data["eye_color"].g, skin_data["eye_color"].b],
-			"shirt_color": [skin_data["shirt_color"].r, skin_data["shirt_color"].g, skin_data["shirt_color"].b],
-			"pants_color": [skin_data["pants_color"].r, skin_data["pants_color"].g, skin_data["pants_color"].b],
-			"hair_style": skin_data["hair_style"]
-		}
-		f.store_string(JSON.stringify(data, "\t"))
-		f.close()
-		status_label.text = "Saved: " + path
-		skin_saved.emit(skin_data)
-	else:
-		status_label.text = "Save failed!"
-
+	var path := "user://skins/" + str(skin_data.name).replace(" ", "_").to_lower() + ".json"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file: file.store_string(JSON.stringify(_serialize(), "\t")); file.close(); status_label.text = "Saved: " + path; skin_saved.emit(skin_data)
+	else: status_label.text = "Save failed"
 
 func _on_load() -> void:
-	# Simple load of last saved or default
-	var path = "user://skins/" + skin_data["name"].replace(" ", "_").to_lower() + ".json"
-	if not FileAccess.file_exists(path):
-		status_label.text = "No skin found with that name"
-		return
-	var f = FileAccess.open(path, FileAccess.READ)
-	if f:
-		var json = JSON.new()
-		if json.parse(f.get_as_text()) == OK:
-			var d = json.data
-			skin_data["name"] = d.get("name", "Afro Steve")
-			skin_data["skin_color"] = Color(d["skin_color"][0], d["skin_color"][1], d["skin_color"][2])
-			skin_data["hair_color"] = Color(d["hair_color"][0], d["hair_color"][1], d["hair_color"][2])
-			skin_data["eye_color"] = Color(d["eye_color"][0], d["eye_color"][1], d["eye_color"][2])
-			skin_data["shirt_color"] = Color(d["shirt_color"][0], d["shirt_color"][1], d["shirt_color"][2])
-			skin_data["pants_color"] = Color(d["pants_color"][0], d["pants_color"][1], d["pants_color"][2])
-			skin_data["hair_style"] = int(d.get("hair_style", 0))
-			name_edit.text = skin_data["name"]
-			skin_picker.color = skin_data["skin_color"]
-			hair_picker.color = skin_data["hair_color"]
-			eye_picker.color = skin_data["eye_color"]
-			shirt_picker.color = skin_data["shirt_color"]
-			pants_picker.color = skin_data["pants_color"]
-			hair_option.selected = skin_data["hair_style"]
-			_apply_to_preview()
-			status_label.text = "Loaded!"
-		f.close()
+	skin_data = AvatarLoader.load_skin(str(skin_data.name)); name_edit.text = skin_data.name; _sync_options(); _refresh_preview(); status_label.text = "Loaded"
 
+func _sync_options() -> void:
+	for control in controls:
+		if control is OptionButton: control.selected = int(skin_data.get(control.get_meta("data_key"), 0))
 
 func _on_export() -> void:
-	_on_save()
-	status_label.text = "Exported to user://skins/"
+	_on_save(); status_label.text = "Exported to user://skins/"
+
+func _close_editor() -> void:
+	closed.emit(); queue_free()
