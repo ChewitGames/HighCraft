@@ -37,7 +37,7 @@ var _plant_wind_shader: Shader
 var _two_sided_shader: Shader
 
 
-func build(world, chunk, defer_mesh_creation: bool = false) -> Dictionary:
+func build(world, chunk, defer_mesh_creation: bool = false, section_y: int = -1) -> Dictionary:
 	_plant_ids = {}
 	var solid_groups: Dictionary = {}
 	var liquid_groups: Dictionary = {}
@@ -46,6 +46,11 @@ func build(world, chunk, defer_mesh_creation: bool = false) -> Dictionary:
 	var base_z = chunk.cz * CHUNK_SIZE
 
 	for key in chunk.blocks.keys():
+		# Runtime rendering is split into Minecraft-style 16x16x16 sections.  A
+		# negative section keeps the old whole-chunk API available to callers that
+		# do not render terrain.
+		if section_y >= 0 and floori(float(key.y) / CHUNK_SIZE) != section_y:
+			continue
 		var id = chunk.blocks[key]
 		var lx = key.x
 		var ly = key.y
@@ -172,7 +177,8 @@ func build(world, chunk, defer_mesh_creation: bool = false) -> Dictionary:
 		return {
 			"solid_groups": solid_groups,
 			"liquid_groups": liquid_groups,
-			"collider_cells": collider_cells.keys()
+			"collider_cells": collider_cells.keys(),
+			"plant_ids": _plant_ids.duplicate()
 		}
 	return {
 		"collide": _to_mesh(solid_groups),
@@ -183,6 +189,7 @@ func build(world, chunk, defer_mesh_creation: bool = false) -> Dictionary:
 
 func materialize(data: Dictionary) -> Dictionary:
 	# Must be called on the main thread.
+	_plant_ids = data.get("plant_ids", {})
 	return {
 		"collide": _to_mesh(data.get("solid_groups", {})),
 		"liquid": _to_mesh(data.get("liquid_groups", {})),

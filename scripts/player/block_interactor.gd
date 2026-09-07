@@ -275,7 +275,9 @@ func _mine(cell: Vector3i, delta: float) -> void:
 		if _can_harvest(bid):
 			_collect_drops(bid)
 			_wear_tool()
-		_net_edit_block(cell.x, cell.y, cell.z, "air")
+			_net_edit_block(cell.x, cell.y, cell.z, "air")
+			if bid == "stone" and game != null and game.has_method("unlock_achievement"):
+				game.unlock_achievement(player, "mine_stone")
 		Audio.play(Audio.dig_group(bid))
 		_has_target = false
 		_mining_progress = 0.0
@@ -455,6 +457,8 @@ func _try_farm_action() -> bool:
 			if not GameSettings.unlimited_blocks(player.game_mode):
 				player.inventory.consume_held(1)
 			Audio.play("place")
+			if crop == "wheat" and game != null and game.has_method("unlock_achievement"):
+				game.unlock_achievement(player, "plant_wheat")
 			return true
 	return false
 
@@ -555,9 +559,8 @@ func _try_tame_animal() -> bool:
 	var held = player.inventory.held()
 	if held == null:
 		return false
-	# Food used for taming
 	var food = held.item_id
-	var tame_foods = ["wheat", "carrot", "potato", "wheat_seeds", "apple"]
+	var tame_foods = ["wheat", "wheat_seeds", "apple", "carrot", "beef", "porkchop", "chicken", "rotten_flesh"]
 	if food not in tame_foods:
 		return false
 	var space = camera.get_world_3d().direct_space_state
@@ -573,7 +576,31 @@ func _try_tame_animal() -> bool:
 	if not (mob is Mob):
 		return false
 	var mid = str(mob.mob_id)
-	if mid not in ["pig", "horse", "wolf", "ocelot"]:
+	var tameable = mid in ["pig", "horse", "wolf", "ocelot"]
+	var breeding_food = (mid in ["cow", "mooshroom", "sheep", "horse"] and food == "wheat") \
+		or (mid in ["pig", "rabbit"] and food == "carrot") \
+		or (mid == "chicken" and food == "wheat_seeds") \
+		or (mid == "wolf" and food in ["beef", "porkchop", "chicken", "rotten_flesh"]) \
+		or (mid == "ocelot" and food == "chicken")
+	if not tameable and not breeding_food:
+		return false
+	var valid_food = (mid == "horse" and food in ["wheat", "apple"]) \
+		or (mid == "pig" and food == "carrot") \
+		or (mid == "wolf" and food in ["beef", "porkchop", "chicken", "rotten_flesh"]) \
+		or (mid == "ocelot" and food == "chicken")
+	if not valid_food:
+		if breeding_food and mob.has_method("enter_love_mode") and mob.enter_love_mode(player):
+			if not GameSettings.unlimited_blocks(player.game_mode):
+				player.inventory.consume_held(1)
+			Audio.play("player_eat")
+			return true
+		return false
+	if bool(mob.get_meta("tamed", false)):
+		if mob.has_method("enter_love_mode") and mob.enter_love_mode(player):
+			if not GameSettings.unlimited_blocks(player.game_mode):
+				player.inventory.consume_held(1)
+			Audio.play("player_eat")
+			return true
 		return false
 	var progress = int(mob.get_meta("tame_progress", 0)) + 1
 	mob.set_meta("tame_progress", progress)
@@ -584,9 +611,12 @@ func _try_tame_animal() -> bool:
 		mob.set_meta("tamed", true)
 		mob.set_meta("owner", player)
 		mob.category = "passive"
-		# Saddle required for ride
-		if mid in ["pig", "horse"] and held.item_id == "saddle":
-			mob.set_meta("saddled", true)
+		if mid == "wolf":
+			mob.name = "Dog"
+			mob.set_meta("domesticated_id", "dog")
+		elif mid == "ocelot":
+			mob.name = "Cat"
+			mob.set_meta("domesticated_id", "cat")
 		print("[Tame] ", mid, " tamed after ", progress, " feeds")
 		Audio.play("ui_achievement")
 	else:
@@ -1474,6 +1504,8 @@ func _net_edit_block(x: int, y: int, z: int, id: String) -> void:
 		world.set_block(x, y, z, id)
 	if game != null and game.has_method("broadcast_block_edit"):
 		game.broadcast_block_edit(x, y, z, id)
+	if id == "fire" and game != null and game.has_method("register_fire"):
+		game.register_fire(Vector3i(x, y, z))
 	# Construct mobs when placing pumpkin / skull
 	if id in ["pumpkin", "carved_pumpkin", "wither_skeleton_skull"]:
 		_try_construct_spawn(Vector3i(x, y, z), id)

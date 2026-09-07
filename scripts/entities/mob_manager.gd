@@ -70,6 +70,11 @@ func mob_count() -> int:
 
 func _try_spawn() -> void:
 	var night = _is_night()
+	if player != null and "difficulty" in player and player.difficulty == GameSettings.Difficulty.PEACEFUL:
+		for existing in get_tree().get_nodes_in_group("mobs"):
+			if existing is Mob and existing.category == "hostile":
+				existing.queue_free()
+		return
 	var raining := false
 	if get_is_raining.is_valid():
 		raining = bool(get_is_raining.call())

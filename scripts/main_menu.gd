@@ -16,6 +16,7 @@ var _room_label: Label
 var _name_edit: LineEdit
 var _code_edit: LineEdit
 var _split_opt: OptionButton
+var _saved_server_opt: OptionButton
 var _preview_root: Node3D
 var _preview_cam: Camera3D
 var _preview_angle: float = 0.0
@@ -200,19 +201,13 @@ func _spawn_real_terrain_async(world: Node3D) -> void:
 	var prenderer := ChunkRenderer.new()
 	world.add_child(prenderer)
 	prenderer.setup(pworld)
-	var sy = pworld.surface_height(0, 0)
-	# Build the complete camera area synchronously. The former threaded startup
-	# displayed two isolated chunks first, making normal hills/water look like
-	# floating Heaven islands while the remaining Overworld chunks trickled in.
-	prenderer._use_threads = false
-	prenderer.max_builds_per_call = 9999
-	var built := 0
-	for cx in range(-3, 4):
-		for cz in range(-3, 4):
-			prenderer.build_chunk(cx, cz)
-			built += 1
-			if built % 3 == 0:
-				await get_tree().process_frame
+	# Reading the generator height avoids synchronously generating the center
+	# chunk merely to position the camera.
+	var sy := generator.height_at(0, 0)
+	# Keep the menu responsive: generate terrain off the main thread and upload
+	# only one 16-high render section per frame in this decorative preview.
+	prenderer.max_sections_per_apply = 1
+	prenderer.update_around(Vector3.ZERO, 3)
 	_preview_focus_y = float(sy)
 
 
@@ -313,6 +308,26 @@ func _build_ui() -> void:
 	_code_edit.placeholder_text = "ABCD-EFGH"
 	_code_edit.focus_mode = Control.FOCUS_ALL
 	vb.add_child(_code_edit)
+	_saved_server_opt = OptionButton.new()
+	_saved_server_opt.add_item("Saved servers…")
+	if has_node("/root/HCSettings"):
+		for profile in HCSettings.saved_servers:
+			_saved_server_opt.add_item("%s  (%s)" % [str(profile.get("name", "Server")), str(profile.get("code", ""))])
+	_saved_server_opt.item_selected.connect(func(index: int):
+		if index > 0 and index - 1 < HCSettings.saved_servers.size():
+			var profile = HCSettings.saved_servers[index - 1]
+			_name_edit.text = str(profile.get("name", "Server"))
+			_code_edit.text = str(profile.get("code", ""))
+	)
+	vb.add_child(_saved_server_opt)
+	var save_server_btn := Button.new()
+	save_server_btn.text = "Save / update server"
+	save_server_btn.pressed.connect(func():
+		HCSettings.save_server(_name_edit.text, _code_edit.text)
+		_refresh_saved_server_options()
+		_status.text = "Server saved. Change its name and press Save again to rename it."
+	)
+	vb.add_child(save_server_btn)
 
 	var sl := Label.new()
 	sl.text = "Split-screen players (2–4, pads/extra keys):"
@@ -424,8 +439,8 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	_host_panel.name = "NewWorldPanel"
 	_host_panel.z_index = 100
 	_host_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_host_panel.custom_minimum_size = Vector2(480, 580)
-	_host_panel.size = Vector2(480, 580)
+	_host_panel.custom_minimum_size = Vector2(500, 690)
+	_host_panel.size = Vector2(500, 690)
 	_host_panel.position = -_host_panel.size / 2.0
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.08, 0.09, 0.12, 0.98)
@@ -451,6 +466,13 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 
 	_host_controls.clear()
 	_host_focus_idx = 0
+	var world_name_edit := LineEdit.new()
+	world_name_edit.placeholder_text = "World name"
+	world_name_edit.text = "New World"
+	world_name_edit.focus_mode = Control.FOCUS_ALL
+	vb.add_child(world_name_edit)
+	_host_controls.append(world_name_edit)
+
 	var seed_label := Label.new()
 	seed_label.text = "Seed (leave empty for random)"
 	vb.add_child(seed_label)
@@ -469,6 +491,24 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	pvp.focus_mode = Control.FOCUS_ALL
 	vb.add_child(pvp)
 	_host_controls.append(pvp)
+	var fire_spread := CheckButton.new()
+	fire_spread.text = "Fire spreads and burns out"
+	fire_spread.button_pressed = true
+	fire_spread.focus_mode = Control.FOCUS_ALL
+	vb.add_child(fire_spread)
+	_host_controls.append(fire_spread)
+	var tnt_explosions := CheckButton.new()
+	tnt_explosions.text = "TNT damages blocks"
+	tnt_explosions.button_pressed = true
+	tnt_explosions.focus_mode = Control.FOCUS_ALL
+	vb.add_child(tnt_explosions)
+	_host_controls.append(tnt_explosions)
+	var tnt_chain := CheckButton.new()
+	tnt_chain.text = "TNT ignites nearby TNT"
+	tnt_chain.button_pressed = true
+	tnt_chain.focus_mode = Control.FOCUS_ALL
+	vb.add_child(tnt_chain)
+	_host_controls.append(tnt_chain)
 
 	var hint := Label.new()
 	hint.text = "Controller: D-Pad navigate  |  A select  |  B cancel"
@@ -478,7 +518,7 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	var create_btn := Button.new()
 	create_btn.text = "Create World"
 	create_btn.pressed.connect(func():
-		_start_new_world(seed_edit.text, mode.selected, difficulty.selected, world_type.selected, pvp.button_pressed)
+		_start_new_world(seed_edit.text, mode.selected, difficulty.selected, world_type.selected, pvp.button_pressed, fire_spread.button_pressed, tnt_explosions.button_pressed, tnt_chain.button_pressed, world_name_edit.text)
 	)
 	vb.add_child(create_btn)
 	_host_controls.append(create_btn)
@@ -506,7 +546,7 @@ func _new_world_option(parent: Control, label_text: String, choices: Array, sele
 	return option
 
 
-func _start_new_world(seed_text: String, mode: int, difficulty: int, world_type: int, pvp: bool) -> void:
+func _start_new_world(seed_text: String, mode: int, difficulty: int, world_type: int, pvp: bool, fire_spread: bool = true, tnt_explosions: bool = true, tnt_chain: bool = true, world_name: String = "New World") -> void:
 	if has_node("/root/HCSettings"):
 		var hs = get_node("/root/HCSettings")
 		hs.splitscreen_players = _new_world_split_players if _new_world_action == "split" else 1
@@ -516,6 +556,10 @@ func _start_new_world(seed_text: String, mode: int, difficulty: int, world_type:
 		Config.difficulty = difficulty
 		Config.world_type = "flat" if world_type == 1 else "normal"
 		Config.pvp_enabled = pvp
+		Config.fire_spread_enabled = fire_spread
+		Config.tnt_explosions_enabled = tnt_explosions
+		Config.tnt_chain_reaction_enabled = tnt_chain
+		Config.world_name = world_name.strip_edges() if world_name.strip_edges() != "" else "New World"
 		# Fresh seed + world_id — NEVER reuse previous world builds/regions
 		var clean_seed := seed_text.strip_edges()
 		var selected_seed = null
@@ -705,19 +749,30 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventJoypadMotion and _controller_nav_cooldown <= 0.0:
 			var hax: int = event.axis
 			var hval: float = event.axis_value
-			if absf(hval) > 0.5 and hax == 1:
-				_host_move(1 if hval > 0.0 else -1)
+			if absf(hval) > 0.5 and (hax == 0 or hax == 1):
+				if hax == 0:
+					_host_move_direction(1 if hval > 0.0 else -1, 0)
+				else:
+					_host_move_direction(0, 1 if hval > 0.0 else -1)
 				_controller_nav_cooldown = CONTROLLER_NAV_DELAY
 				_mark_handled()
 			return
 		if event is InputEventJoypadButton and event.pressed:
 			var hbtn: int = event.button_index
 			if hbtn == HCPad.BTN_DPAD_UP or hbtn == 11:
-				_host_move(-1)
+				_host_move_direction(0, -1)
 				_mark_handled()
 				return
 			if hbtn == HCPad.BTN_DPAD_DOWN or hbtn == 12:
-				_host_move(1)
+				_host_move_direction(0, 1)
+				_mark_handled()
+				return
+			if hbtn == HCPad.BTN_DPAD_LEFT or hbtn == 13:
+				_host_move_direction(-1, 0)
+				_mark_handled()
+				return
+			if hbtn == HCPad.BTN_DPAD_RIGHT or hbtn == 14:
+				_host_move_direction(1, 0)
 				_mark_handled()
 				return
 			if hbtn == HCPad.BTN_ACCEPT or hbtn == 0:
@@ -965,11 +1020,114 @@ func _on_load_world() -> void:
 	if not SaveManager.has_save():
 		_status.text = "No saved world found yet — use New World first."
 		return
-	var data = SaveManager.read()
-	if data == null or typeof(data) != TYPE_DICTIONARY:
-		_status.text = "Save file is corrupted or unreadable."
-		return
-	_show_load_confirm(data)
+	_show_world_list()
+
+
+func _show_world_list() -> void:
+	_close_host_dialog()
+	_host_panel = Panel.new()
+	_host_panel.name = "WorldListPanel"
+	_host_panel.z_index = 100
+	_host_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_host_panel.custom_minimum_size = Vector2(820, 540)
+	_host_panel.size = Vector2(820, 540)
+	_host_panel.position = -_host_panel.size / 2.0
+	add_child(_host_panel)
+	var vb := VBoxContainer.new()
+	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vb.offset_left = 18
+	vb.offset_top = 16
+	vb.offset_right = -18
+	vb.offset_bottom = -16
+	_host_panel.add_child(vb)
+	var title := Label.new()
+	title.text = "Saved Worlds"
+	title.add_theme_font_size_override("font_size", 24)
+	vb.add_child(title)
+	var split_row := HBoxContainer.new()
+	vb.add_child(split_row)
+	var split_label := Label.new()
+	split_label.text = "Load with Split-Screen:"
+	split_row.add_child(split_label)
+	var split_players := OptionButton.new()
+	for player_count in range(2, 5):
+		split_players.add_item("%d players" % player_count, player_count)
+	split_players.focus_mode = Control.FOCUS_ALL
+	split_row.add_child(split_players)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(rows)
+	_host_controls.clear()
+	_host_controls.append(split_players)
+	split_players.set_meta("nav_row", 0)
+	split_players.set_meta("nav_col", 0)
+	var world_row := 1
+	for entry in SaveManager.list_worlds():
+		var row := HBoxContainer.new()
+		rows.add_child(row)
+		var name_edit := LineEdit.new()
+		name_edit.text = str(entry.get("world_name", "World"))
+		name_edit.custom_minimum_size.x = 260
+		name_edit.focus_mode = Control.FOCUS_ALL
+		row.add_child(name_edit)
+		_host_controls.append(name_edit)
+		name_edit.set_meta("nav_row", world_row)
+		name_edit.set_meta("nav_col", 0)
+		var load_btn := Button.new()
+		load_btn.text = "Load"
+		load_btn.pressed.connect(func():
+			var data = SaveManager.read_world(str(entry.get("world_id", "")))
+			if data is Dictionary:
+				_load_saved_world(data, 1)
+		)
+		row.add_child(load_btn)
+		_host_controls.append(load_btn)
+		load_btn.set_meta("nav_row", world_row)
+		load_btn.set_meta("nav_col", 1)
+		var split_btn := Button.new()
+		split_btn.text = "Load with Split-Screen"
+		split_btn.pressed.connect(func():
+			var data = SaveManager.read_world(str(entry.get("world_id", "")))
+			if data is Dictionary:
+				_load_saved_world(data, split_players.get_selected_id())
+		)
+		row.add_child(split_btn)
+		_host_controls.append(split_btn)
+		split_btn.set_meta("nav_row", world_row)
+		split_btn.set_meta("nav_col", 2)
+		var rename_btn := Button.new()
+		rename_btn.text = "Rename"
+		rename_btn.pressed.connect(func():
+			if SaveManager.rename_world(str(entry.get("world_id", "")), name_edit.text):
+				rename_btn.text = "Renamed ✓"
+		)
+		row.add_child(rename_btn)
+		_host_controls.append(rename_btn)
+		rename_btn.set_meta("nav_row", world_row)
+		rename_btn.set_meta("nav_col", 3)
+		world_row += 1
+	var close_btn := Button.new()
+	close_btn.text = "Close"
+	close_btn.pressed.connect(_close_host_dialog)
+	vb.add_child(close_btn)
+	_host_controls.append(close_btn)
+	close_btn.set_meta("nav_row", world_row)
+	close_btn.set_meta("nav_col", 0)
+	_host_focus_idx = 0
+	_host_focus_apply()
+
+
+func _load_saved_world(data: Dictionary, split_players: int) -> void:
+	Config.begin_load_world(data)
+	HCSettings.splitscreen_players = clampi(split_players, 1, 4)
+	HCSettings.save_settings()
+	_close_host_dialog()
+	var world_name := str(data.get("world_name", "world"))
+	var suffix := "\nPreparing %d-player local split-screen" % split_players if split_players > 1 else ""
+	_change_to_game("Loading %s...%s" % [world_name, suffix])
 
 
 func _show_load_confirm(data: Dictionary) -> void:
@@ -1095,6 +1253,45 @@ func _host_move(delta: int) -> void:
 	_host_focus_apply()
 
 
+func _host_move_direction(dx: int, dy: int) -> void:
+	if _host_panel == null or _host_panel.name != "WorldListPanel":
+		if dy != 0:
+			_host_move(dy)
+		return
+	if _host_controls.is_empty():
+		return
+	var current: Control = _host_controls[_host_focus_idx]
+	var row := int(current.get_meta("nav_row", 0))
+	var col := int(current.get_meta("nav_col", 0))
+	var best_index := _host_focus_idx
+	var best_primary := 2147483647
+	var best_secondary := 2147483647
+	for i in range(_host_controls.size()):
+		var candidate: Control = _host_controls[i]
+		if not is_instance_valid(candidate) or not candidate.has_meta("nav_row"):
+			continue
+		var candidate_row := int(candidate.get_meta("nav_row"))
+		var candidate_col := int(candidate.get_meta("nav_col"))
+		if dx != 0:
+			if candidate_row != row or signi(candidate_col - col) != dx:
+				continue
+			var horizontal_distance := absi(candidate_col - col)
+			if horizontal_distance < best_primary:
+				best_primary = horizontal_distance
+				best_index = i
+		else:
+			if signi(candidate_row - row) != dy:
+				continue
+			var vertical_distance := absi(candidate_row - row)
+			var column_distance := absi(candidate_col - col)
+			if vertical_distance < best_primary or (vertical_distance == best_primary and column_distance < best_secondary):
+				best_primary = vertical_distance
+				best_secondary = column_distance
+				best_index = i
+	_host_focus_idx = best_index
+	_host_focus_apply()
+
+
 func _host_activate() -> void:
 	if _host_controls.is_empty():
 		return
@@ -1204,6 +1401,15 @@ func _on_join() -> void:
 		if Multiplayer.world_config_received.is_connected(_on_join_world_ready):
 			Multiplayer.world_config_received.disconnect(_on_join_world_ready)
 		_status.text = str(res.get("error", "Join failed"))
+
+
+func _refresh_saved_server_options() -> void:
+	if _saved_server_opt == null:
+		return
+	_saved_server_opt.clear()
+	_saved_server_opt.add_item("Saved servers…")
+	for profile in HCSettings.saved_servers:
+		_saved_server_opt.add_item("%s  (%s)" % [str(profile.get("name", "Server")), str(profile.get("code", ""))])
 
 
 func _on_join_world_ready() -> void:

@@ -38,6 +38,7 @@ var world
 var mesher: ChunkMesher  # main-thread mesher (preload / edits)
 var loaded: Dictionary = {}
 var max_builds_per_call: int = 8
+var max_sections_per_apply: int = 8
 
 var _shape_cache: Dictionary = {}
 var _holder_pool: Array = []
@@ -48,7 +49,7 @@ var _build_queue: Array = []
 var _ready_results: Array = []
 var _result_mutex: Mutex = Mutex.new()
 var _use_threads: bool = true
-var _max_inflight: int = 2
+var _max_inflight: int = 3
 var _inflight: int = 0
 var _center: Vector2i = Vector2i.ZERO
 var _last_radius: int = -1
@@ -62,6 +63,12 @@ var _last_thread_start_frame: int = -1
 var _last_result_apply_frame: int = -1
 var _deferred_pump_scheduled: bool = false
 var _rebuild_versions: Dictionary = {}
+var _edit_thread: Thread = null
+var _edit_semaphore: Semaphore = Semaphore.new()
+var _edit_mutex: Mutex = Mutex.new()
+var _edit_jobs: Array = []
+var _edit_thread_exit: bool = false
+var _dedicated_versions: Dictionary = {}
 
 # Pool of warm meshers for workers (each has own mat cache)
 var _mesher_pool: Array = []
@@ -70,6 +77,8 @@ const MESHER_POOL_SIZE := 3
 # Render layers 2-5 are private terrain layers for local split players 1-4.
 # Layer 1 remains the normal single-player/shared-world layer.
 const SPLIT_CHUNK_FIRST_BIT := 1
+const SECTION_HEIGHT := 16
+const SECTION_COUNT := int(ceil(float(VoxelWorld.WORLD_HEIGHT) / SECTION_HEIGHT))
 
 
 func setup(p_world) -> void:
@@ -89,6 +98,7 @@ func setup(p_world) -> void:
 	_build_queue.clear()
 	_ready_results.clear()
 	_rebuild_versions.clear()
+	_dedicated_versions.clear()
 	_inflight = 0
 	_last_radius = -1
 	_last_centers.clear()
@@ -97,10 +107,56 @@ func setup(p_world) -> void:
 	_visibility_radius = -1
 	_split_visibility_enabled = false
 	_request_epoch += 1
+	_start_edit_thread()
 	max_builds_per_call = 10
 	for i in range(mini(32, _pool_target)):
 		_holder_pool.append(_make_holder())
 	print("[ChunkRenderer] meshers=", _mesher_pool.size() + 1, " pool=", _holder_pool.size())
+
+
+func _start_edit_thread() -> void:
+	if _edit_thread != null and _edit_thread.is_started():
+		return
+	_edit_thread_exit = false
+	_edit_thread = Thread.new()
+	_edit_thread.start(_edit_thread_loop)
+
+
+func _exit_tree() -> void:
+	_edit_thread_exit = true
+	_edit_semaphore.post()
+	if _edit_thread != null and _edit_thread.is_started():
+		_edit_thread.wait_to_finish()
+
+
+func _edit_thread_loop() -> void:
+	while true:
+		_edit_semaphore.wait()
+		if _edit_thread_exit:
+			return
+		var job: Dictionary = {}
+		_edit_mutex.lock()
+		if not _edit_jobs.is_empty():
+			job = _edit_jobs.pop_front()
+		_edit_mutex.unlock()
+		if job.is_empty():
+			continue
+		var worker_mesher := _acquire_mesher()
+		var sections: Dictionary = {}
+		for section_y in job["sections"]:
+			var meshes = worker_mesher.build(job["view"], job["chunk"], true, section_y)
+			var cells = meshes.get("collider_cells", [])
+			meshes["collider_boxes"] = _merge_colliders(cells) if cells is Array else []
+			meshes.erase("collider_cells")
+			sections[section_y] = meshes
+		_result_mutex.lock()
+		_ready_results.append({
+			"key": job["key"], "sections": sections, "chunk": null,
+			"epoch": job["epoch"], "rebuild_version": job["rebuild_version"],
+			"dedicated_edit": true
+		})
+		_result_mutex.unlock()
+		_release_mesher(worker_mesher)
 
 
 func _acquire_mesher() -> ChunkMesher:
@@ -128,15 +184,6 @@ func _release_mesher(m: ChunkMesher) -> void:
 func _make_holder() -> Node3D:
 	var h = Node3D.new()
 	h.visible = false
-	var mi = MeshInstance3D.new()
-	mi.name = "Solid"
-	h.add_child(mi)
-	var li = MeshInstance3D.new()
-	li.name = "Liquid"
-	h.add_child(li)
-	var body = StaticBody3D.new()
-	body.name = "Body"
-	h.add_child(body)
 	return h
 
 
@@ -153,17 +200,9 @@ func _acquire_holder() -> Node3D:
 func _release_holder(h: Node3D) -> void:
 	if h == null or not is_instance_valid(h):
 		return
-	var solid = h.get_node_or_null("Solid") as MeshInstance3D
-	var liquid = h.get_node_or_null("Liquid") as MeshInstance3D
-	var body = h.get_node_or_null("Body") as StaticBody3D
-	if solid:
-		solid.mesh = null
-	if liquid:
-		liquid.mesh = null
-	if body:
-		for c in body.get_children():
-			body.remove_child(c)
-			c.queue_free()
+	for child in h.get_children():
+		h.remove_child(child)
+		child.queue_free()
 	h.visible = false
 	if h.get_parent() == self:
 		remove_child(h)
@@ -224,8 +263,10 @@ func build_chunk(cx: int, cz: int) -> void:
 	var chunk = world.get_chunk(cx, cz)
 	if chunk == null:
 		return
-	var meshes = mesher.build(world, chunk)
-	_apply_meshes(cx, cz, meshes)
+	var sections: Dictionary = {}
+	for section_y in range(SECTION_COUNT):
+		sections[section_y] = mesher.build(world, chunk, false, section_y)
+	_apply_sections(cx, cz, sections)
 
 
 func remesh_chunk_now(cx: int, cz: int) -> void:
@@ -234,7 +275,7 @@ func remesh_chunk_now(cx: int, cz: int) -> void:
 	_queue_chunk_rebuild(Vector2i(cx, cz), true)
 
 
-func _apply_meshes(cx: int, cz: int, meshes: Dictionary) -> void:
+func _apply_sections(cx: int, cz: int, sections: Dictionary, finish_request: bool = true) -> void:
 	var key = Vector2i(cx, cz)
 	# Runtime changes update the existing holder atomically. Keeping the node in
 	# the tree avoids a visible unload/reload and preserves its render layers.
@@ -246,10 +287,33 @@ func _apply_meshes(cx: int, cz: int, meshes: Dictionary) -> void:
 		holder.name = "Chunk_%d_%d" % [cx, cz]
 		holder.position = Vector3(cx * VoxelWorld.CHUNK_SIZE, 0, cz * VoxelWorld.CHUNK_SIZE)
 		add_child(holder)
-	var solid = holder.get_node_or_null("Solid") as MeshInstance3D
-	var liquid = holder.get_node_or_null("Liquid") as MeshInstance3D
-	var body = holder.get_node_or_null("Body") as StaticBody3D
-	# Assign fully prepared resources only after meshing has completed.
+	for section_y in sections.keys():
+		_apply_section(holder, int(section_y), sections[section_y])
+	_apply_chunk_render_layers(holder, key)
+	loaded[key] = holder
+	if finish_request:
+		_pending.erase(key)
+
+
+func _apply_section(holder: Node3D, section_y: int, meshes: Dictionary) -> void:
+	var section_name := "Section_%d" % section_y
+	var section := holder.get_node_or_null(section_name) as Node3D
+	if section == null:
+		section = Node3D.new()
+		section.name = section_name
+		holder.add_child(section)
+		var new_solid := MeshInstance3D.new()
+		new_solid.name = "Solid"
+		section.add_child(new_solid)
+		var new_liquid := MeshInstance3D.new()
+		new_liquid.name = "Liquid"
+		section.add_child(new_liquid)
+		var new_body := StaticBody3D.new()
+		new_body.name = "Body"
+		section.add_child(new_body)
+	var solid = section.get_node_or_null("Solid") as MeshInstance3D
+	var liquid = section.get_node_or_null("Liquid") as MeshInstance3D
+	var body = section.get_node_or_null("Body") as StaticBody3D
 	if solid:
 		solid.mesh = meshes.get("collide", null)
 		solid.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
@@ -265,7 +329,6 @@ func _apply_meshes(cx: int, cz: int, meshes: Dictionary) -> void:
 		liquid.mesh = meshes.get("liquid", null)
 		liquid.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		liquid.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_apply_chunk_render_layers(holder, key)
 	if body:
 		for c in body.get_children():
 			body.remove_child(c)
@@ -282,8 +345,6 @@ func _apply_meshes(cx: int, cz: int, meshes: Dictionary) -> void:
 				cshape.shape = _box_shape(Vector3(box["w"], 1, box["d"]))
 				cshape.position = Vector3(box["x"] + box["w"] / 2.0, box["y"] + 0.5, box["z"] + box["d"] / 2.0)
 				body.add_child(cshape)
-	loaded[key] = holder
-	_pending.erase(key)
 
 
 func _destroy_chunk(cx: int, cz: int) -> void:
@@ -304,8 +365,8 @@ func rebuild_chunk(cx: int, cz: int) -> void:
 
 
 func _queue_chunk_rebuild(key: Vector2i, priority: bool = false) -> void:
-	# Coalesce runtime edits onto the worker pipeline. Keep the current mesh
-	# visible; _apply_meshes replaces it in place when the worker returns.
+	# Coalesce full chunk streaming/rebuild requests. Runtime block edits use the
+	# smaller dedicated section pipeline below.
 	_rebuild_versions[key] = int(_rebuild_versions.get(key, 0)) + 1
 	if not _pending.has(key):
 		_pending[key] = true
@@ -418,6 +479,14 @@ func _apply_chunk_render_layers(holder: Node, key: Vector2i) -> void:
 	for child in holder.get_children():
 		if child is VisualInstance3D:
 			(child as VisualInstance3D).layers = layer_mask
+		_set_render_layers_recursive(child, layer_mask)
+
+
+func _set_render_layers_recursive(node: Node, layer_mask: int) -> void:
+	for child in node.get_children():
+		if child is VisualInstance3D:
+			(child as VisualInstance3D).layers = layer_mask
+		_set_render_layers_recursive(child, layer_mask)
 
 
 func _inside_any_center(key: Vector2i, centers: Array, radius: int) -> bool:
@@ -502,30 +571,39 @@ func _start_thread_build(key: Vector2i) -> void:
 		generator_ref.structures_enabled = bool(world.generator.structures_enabled)
 	var epoch := _request_epoch
 	var rebuild_version := int(_rebuild_versions.get(key, 0))
+	# A WorkerThreadPool job can outlive this renderer while leaving a server.
+	# Capture the reference-counted synchronization objects instead of resolving
+	# script members through a Node that may already have been freed.
+	var result_mutex_ref := _result_mutex
+	var ready_results_ref := _ready_results
+	var mesher_pool_mutex_ref := _mesher_pool_mutex
+	var mesher_pool_ref := _mesher_pool
 	WorkerThreadPool.add_task(func():
 		if needs_generation:
 			generator_ref.generate(chunk_snapshot)
 			for block_pos in saved_edits.keys():
 				chunk_snapshot.blocks[block_pos] = saved_edits[block_pos]
 			w.center_blocks = chunk_snapshot.blocks
-		# CPU arrays only. ArrayMesh/RenderingServer creation from this worker can
-		# corrupt triangle buffers on Mobile/Adreno.
-		var meshes = m.build(w, chunk_snapshot, true)
-		# Collision merging used to happen in _apply_meshes on the main thread,
-		# stalling physics and camera movement whenever a chunk became ready.
-		var cells = meshes.get("collider_cells", [])
-		meshes["collider_boxes"] = _merge_colliders(cells) if cells is Array else []
-		meshes.erase("collider_cells")
-		_result_mutex.lock()
-		_ready_results.append({
+		var sections: Dictionary = {}
+		for section_y in range(SECTION_COUNT):
+			var meshes = m.build(w, chunk_snapshot, true, section_y)
+			var cells = meshes.get("collider_cells", [])
+			meshes["collider_boxes"] = _merge_colliders(cells) if cells is Array else []
+			meshes.erase("collider_cells")
+			sections[section_y] = meshes
+		result_mutex_ref.lock()
+		ready_results_ref.append({
 			"key": Vector2i(cx, cz),
-			"meshes": meshes,
+			"sections": sections,
 			"chunk": chunk_snapshot if needs_generation else null,
 			"epoch": epoch,
 			"rebuild_version": rebuild_version
 		})
-		_result_mutex.unlock()
-		_release_mesher(m)
+		result_mutex_ref.unlock()
+		mesher_pool_mutex_ref.lock()
+		if mesher_pool_ref.size() < MESHER_POOL_SIZE + 2:
+			mesher_pool_ref.append(m)
+		mesher_pool_mutex_ref.unlock()
 	)
 
 
@@ -577,13 +655,19 @@ func _apply_ready_results() -> void:
 	var item = _ready_results.pop_front()
 	_result_mutex.unlock()
 	_last_result_apply_frame = frame
-	_inflight = maxi(0, _inflight - 1)
+	var is_dedicated := bool(item.get("dedicated_edit", false))
 	var key: Vector2i = item["key"]
 	if int(item.get("epoch", -1)) != _request_epoch or not _pending.has(key):
+		if not is_dedicated:
+			_inflight = maxi(0, _inflight - 1)
 		return
 	# A lever/clock/explosion may edit this chunk again while its worker is still
 	# meshing. Never install that stale snapshot; queue the newest state instead.
 	if int(item.get("rebuild_version", 0)) != int(_rebuild_versions.get(key, 0)):
+		if not is_dedicated:
+			_inflight = maxi(0, _inflight - 1)
+		if int(_dedicated_versions.get(key, -1)) == int(_rebuild_versions.get(key, 0)):
+			return # The newest state is already on the dedicated edit thread.
 		_pending.erase(key)
 		_queue_chunk_rebuild(key)
 		return
@@ -591,12 +675,34 @@ func _apply_ready_results() -> void:
 	if generated_chunk != null and not world.chunks.has(key):
 		world.chunks[key] = generated_chunk
 	# Upload packed CPU arrays and assign materials exclusively on the main thread.
-	var gpu_meshes: Dictionary = mesher.materialize(item["meshes"])
-	_apply_meshes(key.x, key.y, gpu_meshes)
+	var cpu_sections: Dictionary = item["sections"]
+	var section_keys := cpu_sections.keys()
+	var apply_count := mini(max_sections_per_apply, section_keys.size())
+	var gpu_sections: Dictionary = {}
+	for i in range(apply_count):
+		var section_y = section_keys[i]
+		gpu_sections[section_y] = mesher.materialize(item["sections"][section_y])
+		cpu_sections.erase(section_y)
+	var finished := cpu_sections.is_empty()
+	if not finished:
+		item["sections"] = cpu_sections
+		_result_mutex.lock()
+		_ready_results.push_front(item)
+		_result_mutex.unlock()
+	if finished and not is_dedicated:
+		_inflight = maxi(0, _inflight - 1)
+	if finished and is_dedicated:
+		_dedicated_versions.erase(key)
+	_apply_sections(key.x, key.y, gpu_sections, finished)
 
 
 func _process(_delta: float) -> void:
 	# Do not inspect _ready_results without its mutex while a worker may append.
+	_result_mutex.lock()
+	var has_ready := not _ready_results.is_empty()
+	_result_mutex.unlock()
+	if has_ready:
+		_apply_ready_results()
 	if _inflight > 0 or (_build_queue.size() > 0 and _inflight < _max_inflight):
 		_pump_queue()
 
@@ -647,6 +753,7 @@ func set_world(p_world) -> void:
 	_pending.clear()
 	_build_queue.clear()
 	_rebuild_versions.clear()
+	_dedicated_versions.clear()
 	_request_epoch += 1
 	_last_radius = -1
 	_last_centers.clear()
@@ -662,17 +769,68 @@ func edit_block(x: int, y: int, z: int, id: String) -> void:
 	world.set_block(x, y, z, id)
 	var cx = floori(float(x) / VoxelWorld.CHUNK_SIZE)
 	var cz = floori(float(z) / VoxelWorld.CHUNK_SIZE)
-	_queue_chunk_rebuild(Vector2i(cx, cz), true)
+	# Runtime edits use their own dedicated OS thread. They neither block gameplay
+	# nor wait behind terrain-generation jobs in WorkerThreadPool.
+	var section_y := floori(float(y) / SECTION_HEIGHT)
+	var sections := [section_y]
+	var local_y := y - section_y * SECTION_HEIGHT
+	if local_y == 0 and section_y > 0:
+		sections.append(section_y - 1)
+	if local_y == SECTION_HEIGHT - 1 and section_y + 1 < SECTION_COUNT:
+		sections.append(section_y + 1)
+	_queue_dedicated_edit(Vector2i(cx, cz), sections)
 	var lx = x - cx * VoxelWorld.CHUNK_SIZE
 	var lz = z - cz * VoxelWorld.CHUNK_SIZE
 	if lx <= 0:
-		_queue_chunk_rebuild(Vector2i(cx - 1, cz), true)
+		_queue_loaded_dedicated_edit(cx - 1, cz, sections)
 	if lx >= VoxelWorld.CHUNK_SIZE - 1:
-		_queue_chunk_rebuild(Vector2i(cx + 1, cz), true)
+		_queue_loaded_dedicated_edit(cx + 1, cz, sections)
 	if lz <= 0:
-		_queue_chunk_rebuild(Vector2i(cx, cz - 1), true)
+		_queue_loaded_dedicated_edit(cx, cz - 1, sections)
 	if lz >= VoxelWorld.CHUNK_SIZE - 1:
-		_queue_chunk_rebuild(Vector2i(cx, cz + 1), true)
+		_queue_loaded_dedicated_edit(cx, cz + 1, sections)
+
+
+func _queue_loaded_dedicated_edit(cx: int, cz: int, sections: Array) -> void:
+	var key := Vector2i(cx, cz)
+	if loaded.has(key) and world != null and world.chunks.has(key):
+		_queue_dedicated_edit(key, sections)
+
+
+func _queue_dedicated_edit(key: Vector2i, sections: Array) -> void:
+	if world == null or not world.chunks.has(key):
+		return
+	_rebuild_versions[key] = int(_rebuild_versions.get(key, 0)) + 1
+	_dedicated_versions[key] = int(_rebuild_versions[key])
+	_pending[key] = true
+	var source_chunk = world.chunks[key]
+	var snapshot := Chunk.new(key.x, key.y)
+	snapshot.blocks = source_chunk.blocks.duplicate()
+	snapshot.generated = true
+	var job := {
+		"key": key,
+		"chunk": snapshot,
+		"view": _make_meshing_view(key, snapshot.blocks),
+		"epoch": _request_epoch,
+		"rebuild_version": int(_rebuild_versions[key]),
+		"sections": sections.duplicate()
+	}
+	_edit_mutex.lock()
+	for i in range(_edit_jobs.size() - 1, -1, -1):
+		if _edit_jobs[i].get("key") == key:
+			for old_section in _edit_jobs[i].get("sections", []):
+				if not job["sections"].has(old_section):
+					job["sections"].append(old_section)
+			_edit_jobs.remove_at(i)
+	_edit_jobs.push_front(job)
+	_edit_mutex.unlock()
+	_edit_semaphore.post()
+
+
+func _build_loaded_chunk_now(cx: int, cz: int) -> void:
+	var key := Vector2i(cx, cz)
+	if loaded.has(key) and world != null and world.chunks.has(key):
+		build_chunk(cx, cz)
 
 
 func remesh_cells(cells: Array) -> void:
@@ -684,6 +842,38 @@ func remesh_cells(cells: Array) -> void:
 			seen[Vector2i(cx, cz)] = true
 	for key in seen.keys():
 		_queue_chunk_rebuild(key, true)
+
+
+func remesh_cells_now(cells: Array) -> void:
+	var seen: Dictionary = {}
+	for cell in cells:
+		if cell is Vector3i:
+			var cx := floori(float(cell.x) / VoxelWorld.CHUNK_SIZE)
+			var cz := floori(float(cell.z) / VoxelWorld.CHUNK_SIZE)
+			var section_y := floori(float(cell.y) / SECTION_HEIGHT)
+			_mark_section(seen, Vector2i(cx, cz), section_y)
+			var local_y = cell.y - section_y * SECTION_HEIGHT
+			if local_y == 0:
+				_mark_section(seen, Vector2i(cx, cz), section_y - 1)
+			if local_y == SECTION_HEIGHT - 1:
+				_mark_section(seen, Vector2i(cx, cz), section_y + 1)
+			var lx = cell.x - cx * VoxelWorld.CHUNK_SIZE
+			var lz = cell.z - cz * VoxelWorld.CHUNK_SIZE
+			if lx == 0: _mark_section(seen, Vector2i(cx - 1, cz), section_y)
+			if lx == VoxelWorld.CHUNK_SIZE - 1: _mark_section(seen, Vector2i(cx + 1, cz), section_y)
+			if lz == 0: _mark_section(seen, Vector2i(cx, cz - 1), section_y)
+			if lz == VoxelWorld.CHUNK_SIZE - 1: _mark_section(seen, Vector2i(cx, cz + 1), section_y)
+	for key in seen.keys():
+		_queue_loaded_dedicated_edit(key.x, key.y, seen[key])
+
+
+func _mark_section(target: Dictionary, key: Vector2i, section_y: int) -> void:
+	if section_y < 0 or section_y >= SECTION_COUNT:
+		return
+	if not target.has(key):
+		target[key] = []
+	if not target[key].has(section_y):
+		target[key].append(section_y)
 
 
 func _rebuild_if_loaded(cx: int, cz: int) -> void:

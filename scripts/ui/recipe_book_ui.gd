@@ -8,6 +8,7 @@ var _list: ItemList
 var _detail: RichTextLabel
 var _filter: LineEdit
 var _recipes: Array = []
+var _selected_index: int = 0
 
 
 func setup() -> void:
@@ -53,6 +54,7 @@ func setup() -> void:
 	v.add_child(close)
 	_recipes = Registry.recipes.duplicate()
 	_rebuild("")
+	select_first()
 
 
 func _rebuild(text: String = "") -> void:
@@ -65,9 +67,40 @@ func _rebuild(text: String = "") -> void:
 			continue
 		_list.add_item(res)
 		_list.set_item_metadata(_list.item_count - 1, i)
+	select_first()
+
+
+func select_first() -> void:
+	if _list == null or _list.item_count <= 0:
+		_selected_index = -1
+		return
+	_selected_index = clampi(_selected_index, 0, _list.item_count - 1)
+	_list.select(_selected_index)
+	_list.ensure_current_is_visible()
+	_on_select(_selected_index)
+
+
+func controller_move(direction: int) -> void:
+	if _list == null or _list.item_count <= 0:
+		return
+	_selected_index = posmod(_selected_index + direction, _list.item_count)
+	_list.select(_selected_index)
+	_list.ensure_current_is_visible()
+	_on_select(_selected_index)
+
+
+func controller_activate() -> void:
+	if _selected_index >= 0:
+		_on_select(_selected_index)
+
+
+func controller_close() -> void:
+	closed.emit()
+	queue_free()
 
 
 func _on_select(idx: int) -> void:
+	_selected_index = idx
 	var ri = _list.get_item_metadata(idx)
 	if ri == null or ri < 0 or ri >= _recipes.size():
 		return

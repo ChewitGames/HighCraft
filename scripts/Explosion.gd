@@ -31,10 +31,15 @@ func explode(origin: Vector3, world = null, renderer = null) -> void:
 				col.mob_hit(damage)
 
 	if world != null and renderer != null:
+		if has_node("/root/Config") and not Config.tnt_explosions_enabled:
+			queue_free()
+			return
 		var r = int(ceil(radius))
 		var ox = floori(origin.x)
 		var oy = floori(origin.y)
 		var oz = floori(origin.z)
+		var changed_cells: Array = []
+		var chained_tnt: Array[Vector3i] = []
 		for dx in range(-r, r + 1):
 			for dy in range(-r, r + 1):
 				for dz in range(-r, r + 1):
@@ -49,6 +54,21 @@ func explode(origin: Vector3, world = null, renderer = null) -> void:
 					var bdata = Registry.get_block(bid)
 					if bdata != null and float(bdata.get("hardness", 1.0)) < 0.0:
 						continue
-					renderer.edit_block(bx, by, bz, "air")
+					var cell := Vector3i(bx, by, bz)
+					if bid == "tnt" and (not has_node("/root/Config") or Config.tnt_chain_reaction_enabled):
+						chained_tnt.append(cell)
+					world.set_block(bx, by, bz, "air")
+					changed_cells.append(cell)
+		if renderer.has_method("remesh_cells_now"):
+			renderer.remesh_cells_now(changed_cells)
+		elif renderer.has_method("remesh_cells"):
+			renderer.remesh_cells(changed_cells)
+		for cell in chained_tnt:
+			var entity = preload("res://scenes/tnt_entity.tscn").instantiate()
+			entity.global_position = Vector3(cell) + Vector3(0.5, 0.5, 0.5)
+			get_tree().current_scene.add_child(entity)
+			entity.setup(world, renderer)
+			entity.fuse_time = randf_range(0.25, 0.75)
+			entity.ignite()
 
 	queue_free()

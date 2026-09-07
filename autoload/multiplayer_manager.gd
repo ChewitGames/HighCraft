@@ -46,6 +46,9 @@ func _on_peer_connected(id: int) -> void:
 			rpc_id(id, "sync_world_config", {
 				"seed": cfg.seed_val, "world_id": cfg.world_id,
 				"world_type": cfg.world_type, "structures": cfg.generate_structures,
+				"fire_spread": cfg.fire_spread_enabled,
+				"tnt_explosions": cfg.tnt_explosions_enabled,
+				"tnt_chain": cfg.tnt_chain_reaction_enabled,
 				"game_mode": cfg.game_mode, "difficulty": cfg.difficulty,
 				"pvp": pvp_enabled
 			})
@@ -227,6 +230,9 @@ func sync_world_config(data: Dictionary) -> void:
 		cfg.world_id = str(data.get("world_id", cfg.world_id))
 		cfg.world_type = str(data.get("world_type", "normal"))
 		cfg.generate_structures = bool(data.get("structures", true))
+		cfg.fire_spread_enabled = bool(data.get("fire_spread", true))
+		cfg.tnt_explosions_enabled = bool(data.get("tnt_explosions", true))
+		cfg.tnt_chain_reaction_enabled = bool(data.get("tnt_chain", true))
 		cfg.game_mode = int(data.get("game_mode", 1))
 		cfg.difficulty = int(data.get("difficulty", 2))
 		cfg.pvp_enabled = bool(data.get("pvp", true))

@@ -497,26 +497,31 @@ func _physics_process(delta: float) -> void:
 		return
 	if has_meta("riding_mob") and get_meta("riding_mob") != null:
 		var rm = get_meta("riding_mob")
-		if not is_instance_valid(rm) or Input.is_key_pressed(KEY_SHIFT):
+		if not is_instance_valid(rm) or Input.is_key_pressed(KEY_SHIFT) or HCPad.pressed(_joy_device(), HCPad.BTN_CANCEL):
 			set_meta("riding_mob", null)
 			if is_instance_valid(rm):
 				rm.set_meta("rider", null)
 			return
-		global_position = rm.global_position + Vector3(0, 1.4, 0)
+		var seat_height := 2.0 if str(rm.get("mob_id")) == "horse" else 1.25
+		global_position = rm.global_position + Vector3(0, seat_height, 0)
 		velocity = Vector3.ZERO
-		# Steer mount
-		var md = Vector3.ZERO
-		if Input.is_key_pressed(KEY_W):
-			md -= global_transform.basis.z
-		if Input.is_key_pressed(KEY_S):
-			md += global_transform.basis.z
-		if Input.is_key_pressed(KEY_A):
-			rm.rotate_y(1.5 * delta)
-		if Input.is_key_pressed(KEY_D):
-			rm.rotate_y(-1.5 * delta)
-		md.y = 0
-		if md.length() > 0.01 and "velocity" in rm:
-			rm.velocity = md.normalized() * 5.0
+		# Drive the mount from this player's own keyboard/controller axes. Keep the
+		# motion horizontal; forwarding the rider transform previously accumulated
+		# invalid vertical velocity and could launch both entities out of the world.
+		var axis := SplitScreenManager.read_move_axis(split_index if split_index >= 0 else 0)
+		var forward := -head.global_transform.basis.z
+		var right := head.global_transform.basis.x
+		forward.y = 0.0
+		right.y = 0.0
+		var md := (right.normalized() * axis.x + forward.normalized() * -axis.y)
+		if "velocity" in rm:
+			if md.length_squared() > 0.01:
+				rm.velocity.x = md.normalized().x * 5.0
+				rm.velocity.z = md.normalized().z * 5.0
+				rm.look_at(rm.global_position + md.normalized(), Vector3.UP)
+			else:
+				rm.velocity.x = move_toward(rm.velocity.x, 0.0, 12.0 * delta)
+				rm.velocity.z = move_toward(rm.velocity.z, 0.0, 12.0 * delta)
 		return
 	var joy_dev = _joy_device()
 	var deadzone = 0.18

@@ -12,6 +12,9 @@ var is_thunderstorm := false
 var thunder_timer := 0.0
 var thunder_flash := 0.0
 var lightning_light: OmniLight3D # ← NEU für sichtbaren Blitz
+var _burning_blocks: Dictionary = {}
+var _fire_tick: float = 0.0
+var _achievement_states: Dictionary = {}
 # HighCraft - main game scene (Part 13).
 # Voxel world per dimension, chunk streaming, player, interactor, UI, mobs,
 # day/night, and portal travel between Overworld / Hell / The End / Heaven.
@@ -539,11 +542,15 @@ func gather_save() -> Dictionary:
 	return {
 		"seed": Config.seed_val,
 		"world_id": Config.world_id,
+		"world_name": Config.world_name,
 		"world_type": Config.world_type,
 		"default_game_mode": Config.game_mode,
 		"difficulty": Config.difficulty,
 		"pvp_enabled": Config.pvp_enabled,
 		"structures": Config.generate_structures,
+		"fire_spread_enabled": Config.fire_spread_enabled,
+		"tnt_explosions_enabled": Config.tnt_explosions_enabled,
+		"tnt_chain_reaction_enabled": Config.tnt_chain_reaction_enabled,
 		"time_of_day": time_of_day,
 		"current_dim": current_dim,
 		"player": {
@@ -558,6 +565,7 @@ func gather_save() -> Dictionary:
 		"inventory": player.inventory.to_data(),
 		"chests": _serialize_chests(),
 		"starter_chest_created": _starter_chest_created,
+		"achievements": _achievement_states.duplicate(true),
 		"edits": edits
 	}
 	
@@ -565,6 +573,28 @@ func save_now() -> bool:
 	if world != null and world.has_method("flush_regions"):
 		world.flush_regions()
 	return SaveManager.write(gather_save())
+
+
+func _achievement_player_key(for_player) -> String:
+	if for_player != null and for_player.has_meta("split_index"):
+		return str(int(for_player.get_meta("split_index")))
+	return "0"
+
+
+func get_achievement_state(for_player) -> Dictionary:
+	return _achievement_states.get(_achievement_player_key(for_player), {}).duplicate(true)
+
+
+func unlock_achievement(for_player, achievement_id: String) -> void:
+	var key := _achievement_player_key(for_player)
+	var state: Dictionary = _achievement_states.get(key, {})
+	if bool(state.get(achievement_id, false)):
+		return
+	state[achievement_id] = true
+	_achievement_states[key] = state
+	Audio.play("ui_achievement", -4.0)
+
+
 func _apply_save(data: Dictionary) -> void:
 	if data == null or typeof(data) != TYPE_DICTIONARY:
 		return
@@ -592,6 +622,7 @@ func _apply_save(data: Dictionary) -> void:
 		if "xp_level" in player:
 			player.xp_level = int(pdata.get("xp", 0))
 	_starter_chest_created = bool(data.get("starter_chest_created", true))
+	_achievement_states = data.get("achievements", {}).duplicate(true)
 	_load_chests(data.get("chests", []))
 
 	var sdim = Registry.normalize_dimension_id(str(data.get("current_dim", "overworld")))
@@ -600,6 +631,7 @@ func _apply_save(data: Dictionary) -> void:
 
 	current_dim = sdim
 	world = dim_mgr.get_world(sdim)
+	_load_tracked_fire_for_world()
 	if renderer != null:
 		renderer.set_world(world)
 	if interactor != null:
@@ -860,6 +892,7 @@ func travel_to(dim: String, _portal_block: String) -> void:
 
 	current_dim = dim
 	world = dim_mgr.get_world(dim)
+	_load_tracked_fire_for_world()
 
 	if renderer != null:
 		renderer.set_world(world)
@@ -1396,6 +1429,7 @@ func _process(delta: float) -> void:
 	for stand in brewing_stands.values():
 		stand.tick(delta)
 	_tick_fluids(delta)
+	_tick_fire(delta)
 	_tick_end_crystals(delta)
 	_update_boss_bar()
 	_update_network_players(delta)
@@ -1782,6 +1816,7 @@ func strike_lightning(pos: Vector3) -> void:
 		for y in range(cy, cy + 4):
 			if world.get_block(cx, y, cz) == "air":
 				renderer.edit_block(cx, y, cz, "fire")
+				register_fire(Vector3i(cx, y, cz))
 				break
 	# Damage nearby mobs/players + lightning transformations
 	for m in get_tree().get_nodes_in_group("mobs"):
@@ -1810,6 +1845,63 @@ func strike_lightning(pos: Vector3) -> void:
 		if is_instance_valid(bolt):
 			bolt.queue_free()
 	)
+
+
+func register_fire(cell: Vector3i) -> void:
+	# Portal interiors use their own portal block IDs and are intentionally not tracked.
+	_burning_blocks[cell] = randf_range(6.0, 14.0)
+
+
+func _load_tracked_fire_for_world() -> void:
+	_burning_blocks.clear()
+	if world == null or not (world.get("edits") is Dictionary):
+		return
+	for edited_cell in world.edits.keys():
+		if str(world.edits[edited_cell]) == "fire":
+			register_fire(edited_cell)
+
+
+func _tick_fire(delta: float) -> void:
+	if world == null or renderer == null:
+		return
+	_fire_tick -= delta
+	if _fire_tick > 0.0:
+		return
+	_fire_tick = 0.75
+	var changed: Array = []
+	var additions: Dictionary = {}
+	for key in _burning_blocks.keys():
+		var cell: Vector3i = key
+		if world.get_block(cell.x, cell.y, cell.z) != "fire":
+			_burning_blocks.erase(cell)
+			continue
+		var remaining := float(_burning_blocks[cell]) - 0.75
+		if remaining <= 0.0:
+			world.set_block(cell.x, cell.y, cell.z, "air")
+			_burning_blocks.erase(cell)
+			changed.append(cell)
+			continue
+		_burning_blocks[cell] = remaining
+		if not Config.fire_spread_enabled:
+			continue
+		for offset in [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1), Vector3i(0, 1, 0)]:
+			if randf() > 0.22:
+				continue
+			var fuel = cell + offset
+			var target = fuel + Vector3i(0, 1, 0)
+			var fuel_id := str(world.get_block(fuel.x, fuel.y, fuel.z))
+			var data = Registry.get_block(fuel_id)
+			var flammable := fuel_id in ["wood", "planks", "log", "leaves", "wool", "bookshelf", "fence", "chest", "tnt"]
+			if data is Dictionary:
+				flammable = flammable or bool(data.get("flammable", false))
+			if flammable and world.get_block(target.x, target.y, target.z) == "air":
+				world.set_block(target.x, target.y, target.z, "fire")
+				additions[target] = randf_range(6.0, 14.0)
+				changed.append(target)
+	for cell in additions.keys():
+		_burning_blocks[cell] = additions[cell]
+	if not changed.is_empty():
+		renderer.remesh_cells(changed)
 
 
 var _farm_tick: float = 0.0

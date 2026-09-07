@@ -107,6 +107,9 @@ var _osk_open: bool = false
 var _osk_ignore_focus: bool = false
 var _hud_refresh_t: float = 0.0
 var _inventory_refresh_t: float = 0.0
+var _recipe_book: RecipeBookUI = null
+var _achievement_layer: CanvasLayer = null
+var _achievement_close_btn: Button = null
 
 func _is_click(event: InputEvent) -> bool:
 	return event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT
@@ -178,6 +181,18 @@ func _apply_split_ui_scale() -> void:
 	for c in get_children():
 		if c is Control:
 			_scale_split_control(c as Control, s)
+			_apply_readable_split_fonts(c as Control)
+
+
+func _apply_readable_split_fonts(root: Control) -> void:
+	# Controls are geometrically scaled to fit a pane. Counter-scale type so text
+	# remains couch-readable instead of shrinking to 6–9 physical pixels.
+	var local_font_size := ceili(18.0 / maxf(_ui_scale, 0.35))
+	if root is Label or root is Button or root is LineEdit or root is OptionButton or root is CheckButton or root is RichTextLabel:
+		root.add_theme_font_size_override("font_size", local_font_size)
+	for child in root.get_children():
+		if child is Control:
+			_apply_readable_split_fonts(child)
 
 
 func _scale_split_control(ctrl: Control, s: float) -> void:
@@ -201,6 +216,7 @@ func _split_size(base: Vector2) -> Vector2:
 func _register_split_child(ctrl: Control) -> void:
 	if _is_split and ctrl != null and is_instance_valid(ctrl):
 		_scale_split_control(ctrl, _ui_scale)
+		_apply_readable_split_fonts(ctrl)
 
 
 ## Public for BlockInteractor
@@ -1608,6 +1624,17 @@ func _unhandled_input(event: InputEvent) -> void:
 				elif _mode == "avatar":
 					# AvatarEditor handles its own input
 					pass
+				elif _mode == "recipe_book":
+					if HCPad.is_nav_axis_y(ax) and _recipe_book != null:
+						_recipe_book.controller_move(1 if val > 0.0 else -1)
+						_controller_nav_cooldown = CONTROLLER_NAV_DELAY
+						Audio.play("click", -14.0)
+						if get_viewport(): get_viewport().set_input_as_handled()
+				elif _mode == "achievements":
+					if HCPad.is_nav_axis_y(ax) and _achievement_close_btn != null:
+						_achievement_close_btn.grab_focus()
+						_controller_nav_cooldown = CONTROLLER_NAV_DELAY
+						if get_viewport(): get_viewport().set_input_as_handled()
 				elif _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "trade", "chest", "enchant"]:
 					if HCPad.is_nav_axis_x(ax):
 						_move_focus(1 if val > 0.0 else -1, 0)
@@ -1694,6 +1721,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif _mode == "skin":
 				if dpad_dir.y != 0:
 					_skin_focus_move(dpad_dir.y)
+			elif _mode == "recipe_book":
+				if dpad_dir.y != 0 and _recipe_book != null:
+					_recipe_book.controller_move(dpad_dir.y)
+					Audio.play("click", -14.0)
+			elif _mode == "achievements":
+				if _achievement_close_btn != null:
+					_achievement_close_btn.grab_focus()
 			else:
 				_move_focus(dpad_dir.x, dpad_dir.y)
 			_controller_nav_cooldown = CONTROLLER_NAV_DELAY
@@ -1713,6 +1747,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		if _mode == "chat":
 			if _chat_edit != null:
 				_on_chat_submit(_chat_edit.text)
+			if get_viewport(): get_viewport().set_input_as_handled()
+			return
+		if _mode == "recipe_book" and _recipe_book != null:
+			_recipe_book.controller_activate()
+			if get_viewport(): get_viewport().set_input_as_handled()
+			return
+		if _mode == "achievements" and _achievement_close_btn != null:
+			_achievement_close_btn.emit_signal("pressed")
 			if get_viewport(): get_viewport().set_input_as_handled()
 			return
 		if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "trade", "command_block", "chest", "enchant"]:
@@ -1736,6 +1778,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		if _mode == "avatar":
 			return # editor handles B
+		if _mode == "recipe_book":
+			_close_recipe_book()
+			if get_viewport(): get_viewport().set_input_as_handled()
+			return
+		if _mode == "achievements":
+			_close_achievements()
+			if get_viewport(): get_viewport().set_input_as_handled()
+			return
 		if _mode != "closed":
 			_close()
 			if get_viewport(): get_viewport().set_input_as_handled()
@@ -2299,6 +2349,8 @@ func _set_controller_button_focus(button: BaseButton) -> void:
 func open_inventory() -> void:
 	_close_enchant_panel()
 	_open("inventory", 2, null)
+	if game != null and game.has_method("unlock_achievement"):
+		game.unlock_achievement(player, "open_inventory")
 	if _input_device == "controller":
 		_set_controller_slot_focus("main", 0)
 func open_table() -> void:
@@ -4217,6 +4269,7 @@ func open_recipe_book() -> void:
 	_set_ui_mouse_mode(true)
 	get_viewport().gui_disable_input = false
 	var book = RecipeBookUI.new()
+	_recipe_book = book
 	book.name = "RecipeBookUI"
 	add_child(book)
 	book.setup()
@@ -4226,12 +4279,22 @@ func open_recipe_book() -> void:
 		if _mode == "recipe_book":
 			_mode = "closed"
 			_set_ui_mouse_mode(false)
+		_recipe_book = null
 	)
+
+
+func _close_recipe_book() -> void:
+	if _recipe_book != null and is_instance_valid(_recipe_book):
+		_recipe_book.controller_close()
+	else:
+		_mode = "closed"
+		_set_ui_mouse_mode(false)
 
 
 
 func _show_achievements() -> void:
 	var layer = CanvasLayer.new()
+	_achievement_layer = layer
 	layer.layer = 90
 	add_child(layer)
 	var panel = Panel.new()
@@ -4259,20 +4322,32 @@ func _show_achievements() -> void:
 		"ride_minecart": "On A Rail",
 		"kill_boss": "Godslayer",
 	}
+	var completed: Dictionary = {}
+	if game != null and game.has_method("get_achievement_state"):
+		completed = game.get_achievement_state(player)
 	for k in defs.keys():
 		var l = Label.new()
-		l.text = "• " + defs[k]
+		l.text = ("✓  " if bool(completed.get(k, false)) else "□  ") + defs[k]
+		l.add_theme_color_override("font_color", Color(0.45, 0.9, 0.5) if bool(completed.get(k, false)) else Color(0.82, 0.84, 0.88))
 		v.add_child(l)
 	var close = Button.new()
+	_achievement_close_btn = close
 	close.text = "Close"
-	close.pressed.connect(func():
-		layer.queue_free()
-		_mode = "closed"
-		_set_ui_mouse_mode(false)
-	)
+	close.pressed.connect(_close_achievements)
 	v.add_child(close)
 	_mode = "achievements"
 	_set_ui_mouse_mode(true)
+	if _input_device == "controller":
+		close.grab_focus()
+
+
+func _close_achievements() -> void:
+	if _achievement_layer != null and is_instance_valid(_achievement_layer):
+		_achievement_layer.queue_free()
+	_achievement_layer = null
+	_achievement_close_btn = null
+	_mode = "closed"
+	_set_ui_mouse_mode(false)
 
 
 var _effect_hud: VBoxContainer = null
@@ -4285,6 +4360,7 @@ func _build_effect_hud() -> void:
 	_effect_hud = VBoxContainer.new()
 	_effect_hud.name = "EffectHUD"
 	_effect_hud.position = Vector2(12, 80)
+	_effect_hud.add_theme_constant_override("separation", 5)
 	_effect_hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_effect_hud)
 
@@ -4300,13 +4376,28 @@ func _refresh_effect_hud() -> void:
 		var data = player.active_effects[eid]
 		var dur = int(ceil(float(data.get("duration", 0.0))))
 		var amp = int(data.get("amplifier", 0))
+		var panel := PanelContainer.new()
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0.055, 0.065, 0.09, 0.88)
+		style.border_color = Color(0.42, 0.28, 0.68, 0.95)
+		style.set_border_width_all(2)
+		style.corner_radius_top_left = 5
+		style.corner_radius_top_right = 5
+		style.corner_radius_bottom_left = 5
+		style.corner_radius_bottom_right = 5
+		style.content_margin_left = 10
+		style.content_margin_right = 10
+		style.content_margin_top = 5
+		style.content_margin_bottom = 5
+		panel.add_theme_stylebox_override("panel", style)
 		var l = Label.new()
 		var roman = Registry.roman_level(amp + 1) if Registry.has_method("roman_level") else str(amp + 1)
 		l.text = "%s %s  %ds" % [str(eid).replace("_", " ").capitalize(), roman, dur]
-		l.add_theme_font_size_override("font_size", 13)
-		l.add_theme_color_override("font_color", Color(0.75, 0.55, 1.0))
+		l.add_theme_font_size_override("font_size", 16)
+		l.add_theme_color_override("font_color", Color(0.86, 0.76, 1.0))
 		l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
-		_effect_hud.add_child(l)
+		panel.add_child(l)
+		_effect_hud.add_child(panel)
 
 
 func set_boss_bar(title: String, frac: float) -> void:

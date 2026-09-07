@@ -19,6 +19,7 @@ var crossplay_enabled: bool = true
 var preferred_port: int = 4242
 var max_players: int = 8
 var server_display_name: String = "HighCraft Server"
+var saved_servers: Array = [] # [{name, code}]
 var splitscreen_players: int = 1
 var splitscreen_layout: String = "auto"
 var controller_aim_sensitivity: float = 1.2
@@ -202,6 +203,8 @@ func load_settings() -> void:
 	preferred_port = int(cfg.get_value("net", "port", preferred_port))
 	max_players = int(cfg.get_value("net", "max_players", max_players))
 	server_display_name = str(cfg.get_value("net", "server_name", server_display_name))
+	var stored_servers = cfg.get_value("net", "saved_servers", [])
+	saved_servers = stored_servers.duplicate(true) if stored_servers is Array else []
 	splitscreen_players = clampi(int(cfg.get_value("split", "players", splitscreen_players)), 1, 4)
 	splitscreen_layout = str(cfg.get_value("split", "layout", splitscreen_layout))
 	controller_aim_sensitivity = float(cfg.get_value("pad", "aim", controller_aim_sensitivity))
@@ -233,6 +236,7 @@ func save_settings() -> void:
 	cfg.set_value("net", "port", preferred_port)
 	cfg.set_value("net", "max_players", max_players)
 	cfg.set_value("net", "server_name", server_display_name)
+	cfg.set_value("net", "saved_servers", saved_servers)
 	cfg.set_value("split", "players", splitscreen_players)
 	cfg.set_value("split", "layout", splitscreen_layout)
 	cfg.set_value("pad", "aim", controller_aim_sensitivity)
@@ -275,3 +279,29 @@ func effective_load_radius() -> int:
 
 func effective_unload_radius() -> int:
 	return maxi(chunk_unload_radius, chunk_load_radius + 2)
+
+
+func save_server(profile_name: String, code: String) -> void:
+	var clean_name := profile_name.strip_edges()
+	var clean_code := code.strip_edges().to_upper()
+	if clean_name == "" or clean_code == "":
+		return
+	for profile in saved_servers:
+		if str(profile.get("code", "")) == clean_code:
+			profile["name"] = clean_name
+			save_settings()
+			return
+	saved_servers.append({"name": clean_name, "code": clean_code})
+	save_settings()
+
+
+func rename_server(code: String, new_name: String) -> bool:
+	var clean := new_name.strip_edges()
+	if clean == "":
+		return false
+	for profile in saved_servers:
+		if str(profile.get("code", "")) == code:
+			profile["name"] = clean
+			save_settings()
+			return true
+	return false

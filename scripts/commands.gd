@@ -17,6 +17,7 @@ static func execute(text: String, game, player) -> String:
 		"difficulty", "diff": return _difficulty(parts, game, player)
 		"time": return _time(parts, game, player)
 		"weather": return _weather(parts, game, player)
+		"effect", "effekt": return _effect(parts, game, player)
 		"heal": return _heal(parts, game, player)
 		"kill": return _kill(parts, game, player)
 		"summon", "spawn": return _summon(parts, game, player)
@@ -24,7 +25,7 @@ static func execute(text: String, game, player) -> String:
 		"hero": return _summon(["hero_no_brain"] + parts, game, player)
 		"say": return _say(parts, game, player)
 		"locate": return _locate(parts, game, player)
-		"help": return "give tp gamemode difficulty time weather heal kill summon locate charlie hero say | targets: @s @p @a @name"
+		"help": return "give tp gamemode difficulty time weather effect heal kill summon locate charlie hero say | targets: @s @p @a @name"
 		_: return "Unknown command: " + cmd
 
 static func _give(args: Array, game, executor) -> String:
@@ -98,6 +99,29 @@ static func _weather(args: Array, game, executor) -> String:
 	if game.has_method("set_weather"): game.set_weather(mode)
 	else: game.is_raining = mode != "clear"; game.is_thunderstorm = mode == "thunderstorm"
 	return "Weather: " + mode
+
+
+static func _effect(args: Array, game, executor) -> String:
+	var request := _extract_targets(args, game, executor)
+	if request.error != "": return request.error
+	if request.args.size() < 3:
+		return "Usage: effect [@target] <effect_name> <level 1..255> <duration 1..1000000>"
+	var effect_id := str(request.args[0]).to_lower().replace(" ", "_")
+	if not str(request.args[1]).is_valid_int() or not str(request.args[2]).is_valid_int():
+		return "Level and duration must be whole numbers."
+	var level := int(request.args[1])
+	var duration := int(request.args[2])
+	if level < 1 or level > 255:
+		return "Effect level must be between 1 and 255."
+	if duration < 1 or duration > 1000000:
+		return "Effect duration must be between 1 and 1000000 seconds."
+	var known := ["speed", "slowness", "haste", "mining_fatigue", "strength", "weakness", "regeneration", "poison", "wither", "night_vision", "invisibility", "jump_boost", "fire_resistance", "water_breathing", "resistance", "absorption", "instant_health", "instant_damage"]
+	if effect_id not in known:
+		return "Unknown effect: " + effect_id
+	for target in request.targets:
+		if target.has_method("apply_status_effect"):
+			target.apply_status_effect(effect_id, float(duration), level - 1)
+	return "Applied %s %d for %d seconds to %d player(s)." % [effect_id, level, duration, request.targets.size()]
 
 static func _say(args: Array, game, executor) -> String:
 	var request := _extract_targets(args, game, executor)

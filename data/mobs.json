@@ -349,7 +349,7 @@
 		},
 		{
 			"id": "zombie_pigman",
-			"name": "Zombie Pigman",
+			"name": "Zombie Piglin",
 			"hp": 20,
 			"category": "neutral",
 			"damage": 9,

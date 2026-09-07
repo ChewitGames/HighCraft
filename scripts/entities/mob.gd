@@ -54,6 +54,11 @@ var _step_sound_t: float = 0.0
 var _target_refresh_t: float = 0.0
 var _hurt_flash_t: float = 0.0
 var _knockback_t: float = 0.0
+var _love_time: float = 0.0
+var _breed_cooldown: float = 0.0
+var _love_target: Mob = null
+var _breed_search_t: float = 0.0
+var _baby_age: float = 0.0
 
 var _is_flying_boss: bool = false
 var _flight_center: Vector3 = Vector3.ZERO
@@ -705,6 +710,8 @@ func is_ender_dragon() -> bool:
 
 
 func _aggressive() -> bool:
+	if player != null and "game_mode" in player and player.game_mode == GameSettings.GameMode.CREATIVE:
+		return false
 	if category == "hostile" or category == "boss":
 		return true
 	if category == "neutral":
@@ -877,6 +884,10 @@ func _physics_process(delta: float) -> void:
 
 	if player == null:
 		return
+	if category == "hostile" and _world_is_peaceful():
+		queue_free()
+		return
+	_tick_age_and_breeding(delta)
 	_tick_daylight_burn(delta)
 	_ambient_sound_t -= delta
 	if _ambient_sound_t <= 0.0:
@@ -911,9 +922,31 @@ func _physics_process(delta: float) -> void:
 		_animate_model(delta)
 		move_and_slide()
 		return
+	if has_meta("rider") and get_meta("rider") != null and is_instance_valid(get_meta("rider")):
+		velocity.x = clampf(velocity.x, -6.0, 6.0)
+		velocity.z = clampf(velocity.z, -6.0, 6.0)
+		velocity.y = 0.0 if is_on_floor() else clampf(velocity.y, -8.0, 1.0)
+		_animate_model(delta)
+		move_and_slide()
+		global_position.x = clampf(global_position.x, -VoxelWorld.WORLD_BORDER + 2.0, VoxelWorld.WORLD_BORDER - 2.0)
+		global_position.z = clampf(global_position.z, -VoxelWorld.WORLD_BORDER + 2.0, VoxelWorld.WORLD_BORDER - 2.0)
+		if global_position.y < -8.0:
+			var rider = get_meta("rider")
+			global_position = rider.spawn_point if rider != null and "spawn_point" in rider else Vector3(8, 80, 8)
+			velocity = Vector3.ZERO
+		return
 
 	var to_player = player.global_position - global_position
 	var dist = Vector2(to_player.x, to_player.z).length()
+	if _love_target != null and is_instance_valid(_love_target) and _love_time > 0.0:
+		var to_mate := _love_target.global_position - global_position
+		if to_mate.length() <= 1.6:
+			_finish_breeding(_love_target)
+		else:
+			_steer(to_mate, speed * 1.15)
+		_animate_model(delta)
+		move_and_slide()
+		return
 
 	if ai_states.has("explode") and _aggressive() and dist < EXPLODE_RANGE:
 		_explode()
@@ -964,12 +997,101 @@ func _refresh_nearest_player() -> void:
 	for candidate in tree.get_nodes_in_group("players"):
 		if candidate == null or not is_instance_valid(candidate) or not (candidate is Node3D):
 			continue
+		if (category == "hostile" or category == "boss" or (category == "neutral" and _provoked)) \
+				and "game_mode" in candidate and candidate.game_mode == GameSettings.GameMode.CREATIVE:
+			continue
 		var d := global_position.distance_squared_to(candidate.global_position)
 		if d < nearest_sq:
 			nearest_sq = d
 			nearest = candidate
 	if nearest != null:
 		player = nearest
+
+
+func _world_is_peaceful() -> bool:
+	var tree := get_tree()
+	if tree == null:
+		return false
+	var found_player := false
+	for candidate in tree.get_nodes_in_group("players"):
+		if candidate != null and is_instance_valid(candidate) and "difficulty" in candidate:
+			found_player = true
+			if int(candidate.difficulty) != GameSettings.Difficulty.PEACEFUL:
+				return false
+	return found_player
+
+
+func enter_love_mode(owner_player = null) -> bool:
+	if category != "passive" or bool(get_meta("baby", false)) or _breed_cooldown > 0.0:
+		return false
+	_love_time = 30.0
+	if owner_player != null:
+		set_meta("owner", owner_player)
+	_find_love_target()
+	return true
+
+
+func _tick_age_and_breeding(delta: float) -> void:
+	if _breed_cooldown > 0.0:
+		_breed_cooldown = maxf(0.0, _breed_cooldown - delta)
+	if bool(get_meta("baby", false)):
+		_baby_age = maxf(0.0, _baby_age - delta)
+		if _baby_age <= 0.0:
+			set_meta("baby", false)
+			scale = Vector3.ONE
+		return
+	if _love_time <= 0.0:
+		_love_target = null
+		return
+	_love_time -= delta
+	_breed_search_t -= delta
+	if (_love_target == null or not is_instance_valid(_love_target)) and _breed_search_t <= 0.0:
+		_breed_search_t = 1.0
+		_find_love_target()
+
+
+func _find_love_target() -> void:
+	_love_target = null
+	for candidate in get_tree().get_nodes_in_group("mobs"):
+		if candidate == self or not (candidate is Mob) or not is_instance_valid(candidate):
+			continue
+		if candidate.mob_id != mob_id or candidate._love_time <= 0.0 or candidate._breed_cooldown > 0.0:
+			continue
+		if bool(candidate.get_meta("baby", false)):
+			continue
+		if global_position.distance_to(candidate.global_position) <= 12.0:
+			_love_target = candidate
+			candidate._love_target = self
+			return
+
+
+func _finish_breeding(mate: Mob) -> void:
+	if mate == null or not is_instance_valid(mate) or _breed_cooldown > 0.0 or mate._breed_cooldown > 0.0:
+		return
+	_love_time = 0.0
+	mate._love_time = 0.0
+	_breed_cooldown = 300.0
+	mate._breed_cooldown = 300.0
+	_love_target = null
+	mate._love_target = null
+	var manager = get_parent()
+	if manager == null or not manager.has_method("spawn"):
+		return
+	var baby = manager.spawn(mob_id, (global_position + mate.global_position) * 0.5 + Vector3(0, 0.2, 0))
+	if baby is Mob:
+		baby.set_meta("baby", true)
+		var inherited_tame := bool(get_meta("tamed", false)) and bool(mate.get_meta("tamed", false))
+		baby.set_meta("tamed", inherited_tame)
+		if inherited_tame:
+			baby.set_meta("owner", get_meta("owner", player))
+			if mob_id == "wolf":
+				baby.name = "Dog"
+				baby.set_meta("domesticated_id", "dog")
+			elif mob_id == "ocelot":
+				baby.name = "Cat"
+				baby.set_meta("domesticated_id", "cat")
+		baby._baby_age = 600.0
+		baby.scale = Vector3(0.55, 0.55, 0.55)
 
 
 func _physics_process_dragon(delta: float) -> void:
@@ -1002,7 +1124,7 @@ func _physics_process_dragon(delta: float) -> void:
 		# Ziel: knapp über dem Spieler / Boden, damit man den Drachen treffen kann
 		target_pos = player.global_position + Vector3(0, 1.8, 0)
 		move_speed = speed * 0.7
-		if dist < ATTACK_RANGE * 2.5:
+		if dist < ATTACK_RANGE * 2.5 and _can_attack_player():
 			_attack_t -= delta
 			if _attack_t <= 0.0 and attack_damage > 0.0:
 				_attack_t = ATTACK_COOLDOWN
@@ -1015,7 +1137,7 @@ func _physics_process_dragon(delta: float) -> void:
 			_flight_center = Vector3(player.global_position.x, player.global_position.y + 2.0, player.global_position.z)
 	elif _diving:
 		target_pos = player.global_position + Vector3(0, 2.5, 0)
-		if dist < ATTACK_RANGE * 2.2:
+		if dist < ATTACK_RANGE * 2.2 and _can_attack_player():
 			if attack_damage > 0.0:
 				play_mob_sound("attack")
 				player.mob_hit(attack_damage, global_position)
@@ -1042,6 +1164,10 @@ func _physics_process_dragon(delta: float) -> void:
 
 
 	_animate_model(delta)
+
+
+func _can_attack_player() -> bool:
+	return player != null and (not ("game_mode" in player) or player.game_mode != GameSettings.GameMode.CREATIVE)
 
 func _steer(dir: Vector3, spd: float) -> void:
 	var flat = Vector3(dir.x, 0, dir.z).normalized()

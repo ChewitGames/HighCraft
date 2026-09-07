@@ -1289,6 +1289,8 @@
 				]
 			]
 		},
+		{"id":"carrots_1","name":"Carrots","hardness":0.0,"tool":"none","tier":0,"light":0,"transparent":true,"solid":false,"drops":["carrot"]},
+		{"id":"carrots_2","name":"Carrots","hardness":0.0,"tool":"none","tier":0,"light":0,"transparent":true,"solid":false,"drops":["carrot"]},
 		{
 			"id": "potatoes_0",
 			"name": "Potatoes",
@@ -1302,6 +1304,8 @@
 				"potato"
 			]
 		},
+		{"id":"potatoes_1","name":"Potatoes","hardness":0.0,"tool":"none","tier":0,"light":0,"transparent":true,"solid":false,"drops":["potato"]},
+		{"id":"potatoes_2","name":"Potatoes","hardness":0.0,"tool":"none","tier":0,"light":0,"transparent":true,"solid":false,"drops":["potato"]},
 		{
 			"id": "potatoes_3",
 			"name": "Potatoes",

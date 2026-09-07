@@ -4,9 +4,11 @@ extends RefCounted
 
 const CROP_STAGES := {
 	"wheat": ["wheat_0", "wheat_1", "wheat_2", "wheat_3"],
-	"carrot": ["carrots_0", "carrots_3"],
-	"potato": ["potatoes_0", "potatoes_3"],
+	"carrot": ["carrots_0", "carrots_1", "carrots_2", "carrots_3"],
+	"potato": ["potatoes_0", "potatoes_1", "potatoes_2", "potatoes_3"],
 }
+const SECONDS_PER_STAGE := 200.0
+static var _growth_seconds: Dictionary = {}
 
 static func is_hoe(item_id: String) -> bool:
 	return item_id.ends_with("_hoe") or item_id == "hoe"
@@ -70,9 +72,10 @@ static func tick_chunk(world, renderer, chunk, is_raining: bool) -> void:
 	var keys = chunk.blocks.keys()
 	if keys.is_empty():
 		return
-	# Sample a few cells per call
-	for _i in range(mini(8, keys.size())):
-		var key = keys[randi() % keys.size()]
+	# At one world day per full crop, four stages need about one successful step
+	# every 200 seconds. Check every planted crop once per second; random sampling
+	# among thousands of stone cells made real farms effectively never grow.
+	for key in keys:
 		var id = str(chunk.blocks[key])
 		var crop = ""
 		var stage = -1
@@ -95,13 +98,13 @@ static func tick_chunk(world, renderer, chunk, is_raining: bool) -> void:
 		if moist and soil == "farmland":
 			if renderer:
 				renderer.edit_block(wx, key.y - 1, wz, "farmland_moist")
-		var chance = 0.08
-		if moist:
-			chance *= 2.5
-		if is_raining:
-			chance *= 2.0
-		if randf() > chance:
+		if not moist and not is_raining:
 			continue
+		var timer_key := "%s:%d:%d:%d" % [str(world.get_instance_id()), wx, key.y, wz]
+		_growth_seconds[timer_key] = float(_growth_seconds.get(timer_key, 0.0)) + 1.0
+		if float(_growth_seconds[timer_key]) < SECONDS_PER_STAGE:
+			continue
+		_growth_seconds.erase(timer_key)
 		var nxt = stages2[stage + 1]
 		if renderer:
 			renderer.edit_block(wx, key.y, wz, nxt)

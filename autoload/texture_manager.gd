@@ -58,6 +58,15 @@ func get_texture(id: String) -> Texture2D:
 	if _cache.has(id):
 		return _cache[id]
 	var tex: Texture2D = null
+	var crop_cell := _crop_atlas_cell(id)
+	if crop_cell.x >= 0:
+		var atlas_path := TEX_DIR + "crop_growth_atlas.png"
+		if ResourceLoader.exists(atlas_path):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = load(atlas_path)
+			var cell_size := Vector2(atlas.atlas.get_width() / 4.0, atlas.atlas.get_height() / 3.0)
+			atlas.region = Rect2(Vector2(crop_cell) * cell_size, cell_size)
+			tex = atlas
 	if has_node("/root/Addons"):
 		var external_path := str(get_node("/root/Addons").find_texture(id))
 		if external_path != "":
@@ -71,6 +80,19 @@ func get_texture(id: String) -> Texture2D:
 		tex = _generate(id)
 	_cache[id] = tex
 	return tex
+
+
+func _crop_atlas_cell(id: String) -> Vector2i:
+	var ids := [
+		["wheat_0", "wheat_1", "wheat_2", "wheat_3"],
+		["carrots_0", "carrots_1", "carrots_2", "carrots_3"],
+		["potatoes_0", "potatoes_1", "potatoes_2", "potatoes_3"]
+	]
+	for row in range(ids.size()):
+		var column = ids[row].find(id)
+		if column >= 0:
+			return Vector2i(column, row)
+	return Vector2i(-1, -1)
 
 
 func clear_cache() -> void:
