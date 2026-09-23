@@ -13,6 +13,8 @@ var generate_structures: bool = true
 var fire_spread_enabled: bool = true
 var tnt_explosions_enabled: bool = true
 var tnt_chain_reaction_enabled: bool = true
+var items_burn_enabled: bool = true   # dropped items burn in fire/lava
+var keep_inventory_enabled: bool = false  # keep inventory on death
 var pending_save = null
 var load_regions_from_disk: bool = false  # true only when continuing a saved world
 
@@ -29,6 +31,8 @@ func reset_defaults() -> void:
 	fire_spread_enabled = true
 	tnt_explosions_enabled = true
 	tnt_chain_reaction_enabled = true
+	items_burn_enabled = true
+	keep_inventory_enabled = false
 	pending_save = null
 	load_regions_from_disk = false
 
@@ -63,6 +67,8 @@ func begin_load_world(data: Dictionary) -> void:
 	fire_spread_enabled = bool(data.get("fire_spread_enabled", true))
 	tnt_explosions_enabled = bool(data.get("tnt_explosions_enabled", true))
 	tnt_chain_reaction_enabled = bool(data.get("tnt_chain_reaction_enabled", true))
+	items_burn_enabled = bool(data.get("items_burn_enabled", true))
+	keep_inventory_enabled = bool(data.get("keep_inventory_enabled", false))
 	# Edits come from the save JSON — do NOT merge old region files from other sessions
 	load_regions_from_disk = false
 	print("[Config] LOAD WORLD seed=", seed_val, " world_id=", world_id)

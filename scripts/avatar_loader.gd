@@ -65,18 +65,105 @@ static func populate_model(model: Node3D, skin: Dictionary, preview := false) ->
 	_arm_limb(model, "RightArm", arm_size, Vector3(shoulder, torso_y + arm_size.y * 0.45, 0), skin_c, shirt_c, sleeve_ratio)
 	# Legs and feet are separate so age/build affect the complete silhouette.
 	# The old single limb was scaled twice for Liddle and visibly floated above ground.
-	var build_width: float = [0.82, 1.0, 1.18][build]
-	var age_foot_scale: float = [0.78, 0.92, 1.0, 0.96][age]
-	var leg_top := 0.78 * height
-	var foot_height = 0.105 * age_foot_scale * [0.9, 1.0, 1.08][build]
-	var leg_width := hip * (0.58 if gender == 1 else 0.64) * build_width
-	var leg_depth = (0.205 if gender == 1 else 0.22) * age_foot_scale * [0.88, 1.0, 1.14][build]
-	var leg_size := Vector3(leg_width, maxf(0.2, leg_top - foot_height), leg_depth)
-	var foot_size := Vector3(leg_width * [0.94, 1.02, 1.1][build], foot_height, leg_depth * [1.18, 1.28, 1.38][build])
-	_leg_with_foot(model, "LeftLeg", leg_size, foot_size, Vector3(-hip * 0.48, leg_top, 0), pants_c)
-	_leg_with_foot(model, "RightLeg", leg_size, foot_size, Vector3(hip * 0.48, leg_top, 0), pants_c)
+	var legs := _leg_dims(skin)
+	var leg_size := Vector3(legs.w, maxf(0.2, legs.top - legs.foot_h), legs.d)
+	var foot_size := Vector3(legs.w * 1.06, legs.foot_h, legs.d * 1.28)
+	_leg_with_foot(model, "LeftLeg", leg_size, foot_size, Vector3(-legs.x, legs.top, 0), pants_c)
+	_leg_with_foot(model, "RightLeg", leg_size, foot_size, Vector3(legs.x, legs.top, 0), pants_c)
 	_add_outfit_details(model, int(skin.get("outfit_style", 0)), torso_y, torso, shirt_c)
 	_add_back_cosmetics(model, skin, torso_y, torso, head_y, -front)
+
+
+# Beinmaße, zentral berechnet, damit Modell und Rüstung dieselben Proportionen
+# nutzen: Dicke aus der Rumpfbreite, Länge aus der Größe, Abstand symmetrisch.
+static func _leg_dims(skin: Dictionary) -> Dictionary:
+	var dims := Catalog.body_dimensions(skin)
+	var age := clampi(int(skin.get("age", 2)), 0, 3)
+	var build := clampi(int(skin.get("build", 1)), 0, 2)
+	var gender := int(skin.get("gender", 0))
+	var torso: Vector3 = dims.torso
+	var age_foot_scale: float = [0.78, 0.92, 1.0, 0.96][age]
+	var foot_h: float = 0.105 * age_foot_scale * [0.9, 1.0, 1.08][build]
+	return {
+		"w": torso.x * (0.275 if gender == 1 else 0.30) * dims.limb_scale,
+		"d": torso.z * 0.82 * dims.limb_scale,
+		"top": 0.78 * dims.height,
+		"foot_h": foot_h,
+		"x": torso.x * 0.245,
+	}
+
+
+const ARMOR_COLORS := {
+	"leather": Color(0.55, 0.35, 0.2), "chainmail": Color(0.55, 0.55, 0.57),
+	"iron": Color(0.72, 0.74, 0.76), "gold": Color(0.95, 0.82, 0.25),
+	"diamond": Color(0.4, 0.82, 0.92), "netherite": Color(0.25, 0.22, 0.24),
+}
+
+
+static func _armor_color(item_id: String) -> Color:
+	var id := str(item_id)
+	for key in ARMOR_COLORS.keys():
+		if id.begins_with(key):
+			return ARMOR_COLORS[key]
+	return Color(0.6, 0.6, 0.65)
+
+
+# Rüstung liegt als dünne Schale über dem Skin; jede Größe leitet sich aus den
+# Körpermaßen des jeweiligen Skins ab, sodass sie zu jeder Statur passt.
+static func apply_armor_visuals(model: Node3D, skin: Dictionary, armor: Array) -> void:
+	for c in model.get_children():
+		if str(c.name).begins_with("armor_"):
+			model.remove_child(c)
+			c.queue_free()
+	if armor == null or armor.is_empty():
+		return
+	var dims := Catalog.body_dimensions(skin)
+	var height: float = dims.height
+	var torso: Vector3 = dims.torso
+	var head_size: Vector3 = Vector3(0.55, 0.55, 0.55) * float(dims.head_scale)
+	var head_y: float = 1.25 + 0.5 * height
+	var torso_y: float = 0.7 + 0.42 * height
+	var legs := _leg_dims(skin)
+	var leg_len := maxf(0.2, legs.top - legs.foot_h)
+	var slot_name := ["helmet", "chest", "legs", "boots"]
+	for i in range(mini(armor.size(), 4)):
+		var s = armor[i]
+		if s == null or str(s.item_id) == "":
+			continue
+		var id := str(s.item_id)
+		if id == "elytra":
+			continue  # Elytra bleibt unsichtbar (eigene Animation, kein Rüstpanzer)
+		var col := _armor_color(id)
+		match i:
+			0:  # Helm: Kappe über dem Oberkopf, Gesicht bleibt frei
+				_armor_box(model, "armor_helmet", Vector3(head_size.x * 1.09, head_size.y * 0.66, head_size.z * 1.09),
+					Vector3(0, head_y + head_size.y * 0.17, 0), col)
+			1:  # Brustpanzer: obere zwei Drittel des Rumpfs
+				_armor_box(model, "armor_chest", Vector3(torso.x * 1.05, torso.y * 0.7, torso.z * 1.05),
+					Vector3(0, torso_y + torso.y * 0.12, 0), col)
+			2:  # Beinschienen: pro Bein
+				for side in [-1, 1]:
+					_armor_box(model, "armor_legs_%d" % side, Vector3(legs.w * 1.12, leg_len * 0.8, legs.d * 1.12),
+						Vector3(side * legs.x, legs.top - leg_len * 0.4, 0), col)
+			3:  # Stiefel: Fuß + Unterschenkel
+				for side in [-1, 1]:
+					_armor_box(model, "armor_boots_%d" % side, Vector3(legs.w * 1.14, legs.foot_h * 2.1, legs.d * 1.28),
+						Vector3(side * legs.x, legs.foot_h * 0.85, 0), col)
+
+
+static func _armor_box(parent: Node3D, node_name: String, size: Vector3, pos: Vector3, color: Color) -> void:
+	var instance := MeshInstance3D.new()
+	instance.name = node_name
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	instance.mesh = mesh
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = 0.6
+	material.metallic = 0.35
+	instance.material_override = material
+	instance.position = pos
+	parent.add_child(instance)
 
 static func _add_face_details(parent: Node3D, y: float, scale: float, front: float, skin: Color, eyes: Color, age: int, gender: int, mouth_style: int) -> void:
 	var face_z := front * scale - 0.012

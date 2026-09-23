@@ -8,7 +8,6 @@ extends Node3D
 var _dispenser_cell: Vector3i = Vector3i.ZERO
 var _lt_was_down: bool = false
 var _rb_was_down: bool = false
-var _x_was_down: bool = false
 var _rt_was_down: bool = false
 var _lmb_was_down: bool = false
 var _rmb_was_down: bool = false
@@ -204,11 +203,8 @@ func _process(delta: float) -> void:
 			_attack()
 	_rt_was_down = rt_down
 
-	# X / Square / left-face = attack
-	var x_down = HCPad.pressed(dev2, HCPad.BTN_ATTACK_ALT)
-	if x_down and not _x_was_down:
-		_attack()
-	_x_was_down = x_down
+	# X / Square ist jetzt der Item-Drop (siehe Player.gd); Angriff/Abbau/Bogen
+	# laufen ausschließlich über RT + Linksklick.
 
 	# RB = use / place
 	var rb_down = HCPad.pressed(dev2, HCPad.BTN_RB)
@@ -382,8 +378,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 
 		match event.button_index:
-			HCPad.BTN_ATTACK_ALT:
-				_attack()
 			HCPad.BTN_RB:
 				_rb_was_down = true
 				_do_use_action()
@@ -561,6 +555,7 @@ func _try_tame_animal() -> bool:
 		return false
 	var food = held.item_id
 	var tame_foods = ["wheat", "wheat_seeds", "apple", "carrot", "beef", "porkchop", "chicken", "rotten_flesh"]
+	tame_foods.append("fish")
 	if food not in tame_foods:
 		return false
 	var space = camera.get_world_3d().direct_space_state
@@ -576,7 +571,7 @@ func _try_tame_animal() -> bool:
 	if not (mob is Mob):
 		return false
 	var mid = str(mob.mob_id)
-	var tameable = mid in ["pig", "horse", "wolf", "ocelot"]
+	var tameable = mid in ["pig", "horse", "wolf", "ocelot", "red_dragon", "pink_dragon", "white_dragon"]
 	var breeding_food = (mid in ["cow", "mooshroom", "sheep", "horse"] and food == "wheat") \
 		or (mid in ["pig", "rabbit"] and food == "carrot") \
 		or (mid == "chicken" and food == "wheat_seeds") \
@@ -588,6 +583,8 @@ func _try_tame_animal() -> bool:
 		or (mid == "pig" and food == "carrot") \
 		or (mid == "wolf" and food in ["beef", "porkchop", "chicken", "rotten_flesh"]) \
 		or (mid == "ocelot" and food == "chicken")
+	if mid in ["red_dragon", "pink_dragon", "white_dragon"] and food == "fish":
+		valid_food = true
 	if not valid_food:
 		if breeding_food and mob.has_method("enter_love_mode") and mob.enter_love_mode(player):
 			if not GameSettings.unlimited_blocks(player.game_mode):
@@ -644,6 +641,9 @@ func _try_flint_and_steel() -> bool:
 	var place: Vector3i = hit.get("place", hit["hit"])
 	# Light a hell portal if an obsidian frame is complete
 	if PortalBuilder.try_light_hell(world, renderer, target) or PortalBuilder.try_light_hell(world, renderer, place):
+		Audio.play("fire_ignite")
+		return true
+	if PortalBuilder.try_light_red_dimension(world, renderer, target) or PortalBuilder.try_light_red_dimension(world, renderer, place):
 		Audio.play("fire_ignite")
 		return true
 	if world.get_block(place.x, place.y, place.z) != "air":
@@ -989,9 +989,14 @@ func _try_talk() -> bool:
 		cart.try_mount(player)
 		return true
 
-	# Tamed pig/horse: saddle then ride
+	# Tamed land animals need a saddle; dragons can be mounted directly.
 	var mob = col if col is Mob else (col.get_parent() if col.get_parent() is Mob else null)
 	if mob != null and bool(mob.get_meta("tamed", false)):
+		if str(mob.mob_id) in ["red_dragon", "pink_dragon", "white_dragon"]:
+			mob.set_meta("rider", player)
+			player.set_meta("riding_mob", mob)
+			Audio.play("dragon_growl")
+			return true
 		var held = player.inventory.held() if _inv_ok() else null
 		if held != null and held.item_id == "saddle" and not bool(mob.get_meta("saddled", false)):
 			mob.set_meta("saddled", true)

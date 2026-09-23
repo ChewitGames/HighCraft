@@ -41,6 +41,7 @@ var _settings_controls: Array = []   # HSlider / CheckButton / Button in order
 var _settings_focus_idx: int = 0
 # Host ready dialog (same pattern — no Window)
 var _host_panel: Panel = null
+var _host_scroll: ScrollContainer = null
 var _host_controls: Array = []
 var _host_focus_idx: int = 0
 var _osk: OnScreenKeyboard = null
@@ -97,7 +98,7 @@ func _focus_owner() -> Control:
 
 func _ready() -> void:
 	# Gameplay captures the process-global mouse. Scene changes do not reset that
-	# state automatically, so every path back to the menu must release it here.
+
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if has_node("/root/Music"):
 		get_node("/root/Music").play_for_dimension("menu")
@@ -106,7 +107,30 @@ func _ready() -> void:
 	_build_intro()
 	_build_ui()
 	_build_preview()
+	
+	# state automatically, so every path back to the menu must release it here.
+	var credits = Label.new()
+	credits.text = "Arrow model by None (Sketchfab)\nVillager SFX: Bithuh, chieuk, freesound_community (Pixabay)\n(C) Chewit!Games™"
+	credits.add_theme_font_size_override("font_size", 10)
+	credits.add_theme_color_override("font_color", Color(1,1,1,0.7))
+	credits.name = "CreditsLabel"   # ← WICHTIG!
+	add_child(credits)
+	_update_credits_position(credits)
 
+
+
+func _notification(what):
+	if what == NOTIFICATION_RESIZED:
+		var lbl := get_node_or_null("CreditsLabel")
+		if lbl != null:
+			_update_credits_position(lbl)
+
+
+func _update_credits_position(lbl):
+	lbl.position = Vector2(
+		get_viewport_rect().size.x - lbl.get_minimum_size().x - 10,
+		get_viewport_rect().size.y - lbl.get_minimum_size().y - 10
+	)
 
 func _process(delta: float) -> void:
 	if _controller_nav_cooldown > 0.0:
@@ -439,8 +463,12 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	_host_panel.name = "NewWorldPanel"
 	_host_panel.z_index = 100
 	_host_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_host_panel.custom_minimum_size = Vector2(500, 690)
-	_host_panel.size = Vector2(500, 690)
+	# Never taller than the screen: on 720p/Steam Deck panels the Create World
+	# button ended up below the visible area. The content scrolls instead.
+	var avail_h := get_viewport().get_visible_rect().size.y
+	var panel_h := minf(690.0, avail_h - 24.0)
+	_host_panel.custom_minimum_size = Vector2(500, panel_h)
+	_host_panel.size = Vector2(500, panel_h)
 	_host_panel.position = -_host_panel.size / 2.0
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = Color(0.08, 0.09, 0.12, 0.98)
@@ -449,14 +477,22 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	_host_panel.add_theme_stylebox_override("panel", bg)
 	add_child(_host_panel)
 
+	# ScrollContainer = Mausrad scrollt von selbst; der Controller scrollt
+	# automatisch nach, sobald der Fokus weiter wandert (siehe _host_focus_apply).
+	_host_scroll = ScrollContainer.new()
+	_host_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_host_scroll.offset_left = 8
+	_host_scroll.offset_top = 8
+	_host_scroll.offset_right = -8
+	_host_scroll.offset_bottom = -8
+	_host_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_host_panel.add_child(_host_scroll)
+
 	var vb := VBoxContainer.new()
-	vb.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vb.offset_left = 20
-	vb.offset_top = 18
-	vb.offset_right = -20
-	vb.offset_bottom = -18
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.custom_minimum_size = Vector2(468, 0)
 	vb.add_theme_constant_override("separation", 10)
-	_host_panel.add_child(vb)
+	_host_scroll.add_child(vb)
 
 	var title := Label.new()
 	title.text = "Create New World"
@@ -509,6 +545,18 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	tnt_chain.focus_mode = Control.FOCUS_ALL
 	vb.add_child(tnt_chain)
 	_host_controls.append(tnt_chain)
+	var item_burn := CheckButton.new()
+	item_burn.text = "Items burn in fire and lava"
+	item_burn.button_pressed = true
+	item_burn.focus_mode = Control.FOCUS_ALL
+	vb.add_child(item_burn)
+	_host_controls.append(item_burn)
+	var keep_inv := CheckButton.new()
+	keep_inv.text = "Keep inventory on death"
+	keep_inv.button_pressed = false
+	keep_inv.focus_mode = Control.FOCUS_ALL
+	vb.add_child(keep_inv)
+	_host_controls.append(keep_inv)
 
 	var hint := Label.new()
 	hint.text = "Controller: D-Pad navigate  |  A select  |  B cancel"
@@ -518,7 +566,7 @@ func _show_new_world_dialog(action: String, split_players: int = 1) -> void:
 	var create_btn := Button.new()
 	create_btn.text = "Create World"
 	create_btn.pressed.connect(func():
-		_start_new_world(seed_edit.text, mode.selected, difficulty.selected, world_type.selected, pvp.button_pressed, fire_spread.button_pressed, tnt_explosions.button_pressed, tnt_chain.button_pressed, world_name_edit.text)
+		_start_new_world(seed_edit.text, mode.selected, difficulty.selected, world_type.selected, pvp.button_pressed, fire_spread.button_pressed, tnt_explosions.button_pressed, tnt_chain.button_pressed, item_burn.button_pressed, keep_inv.button_pressed, world_name_edit.text)
 	)
 	vb.add_child(create_btn)
 	_host_controls.append(create_btn)
@@ -546,7 +594,7 @@ func _new_world_option(parent: Control, label_text: String, choices: Array, sele
 	return option
 
 
-func _start_new_world(seed_text: String, mode: int, difficulty: int, world_type: int, pvp: bool, fire_spread: bool = true, tnt_explosions: bool = true, tnt_chain: bool = true, world_name: String = "New World") -> void:
+func _start_new_world(seed_text: String, mode: int, difficulty: int, world_type: int, pvp: bool, fire_spread: bool = true, tnt_explosions: bool = true, tnt_chain: bool = true, items_burn: bool = true, keep_inventory: bool = false, world_name: String = "New World") -> void:
 	if has_node("/root/HCSettings"):
 		var hs = get_node("/root/HCSettings")
 		hs.splitscreen_players = _new_world_split_players if _new_world_action == "split" else 1
@@ -559,6 +607,8 @@ func _start_new_world(seed_text: String, mode: int, difficulty: int, world_type:
 		Config.fire_spread_enabled = fire_spread
 		Config.tnt_explosions_enabled = tnt_explosions
 		Config.tnt_chain_reaction_enabled = tnt_chain
+		Config.items_burn_enabled = items_burn
+		Config.keep_inventory_enabled = keep_inventory
 		Config.world_name = world_name.strip_edges() if world_name.strip_edges() != "" else "New World"
 		# Fresh seed + world_id — NEVER reuse previous world builds/regions
 		var clean_seed := seed_text.strip_edges()
@@ -1121,13 +1171,106 @@ func _show_world_list() -> void:
 
 
 func _load_saved_world(data: Dictionary, split_players: int) -> void:
-	Config.begin_load_world(data)
-	HCSettings.splitscreen_players = clampi(split_players, 1, 4)
-	HCSettings.save_settings()
+	# Vor jedem Spielstart kommen die Weltoptionen (Verbrennen / Keep Inventory),
+	# damit sie auch beim Laden, im Split-Screen und auf dem Server gestellt
+	# werden können.
+	_show_load_options(data, split_players)
+
+
+# Weltoptionen-Panel vor dem Laden einer Welt: die Wertrichtung kommt aus dem
+# Savegame, kann hier aber für diese Sitzung umgeschaltet werden.
+func _show_load_options(data: Dictionary, split_players: int) -> void:
 	_close_host_dialog()
-	var world_name := str(data.get("world_name", "world"))
-	var suffix := "\nPreparing %d-player local split-screen" % split_players if split_players > 1 else ""
-	_change_to_game("Loading %s...%s" % [world_name, suffix])
+	_host_panel = Panel.new()
+	_host_panel.name = "LoadOptionsPanel"
+	_host_panel.z_index = 100
+	_host_panel.set_anchors_preset(Control.PRESET_CENTER)
+	var avail_h2 := get_viewport().get_visible_rect().size.y
+	var panel_h2 := minf(520.0, avail_h2 - 24.0)
+	_host_panel.custom_minimum_size = Vector2(560, panel_h2)
+	_host_panel.size = Vector2(560, panel_h2)
+	_host_panel.position = -_host_panel.size / 2.0
+	add_child(_host_panel)
+	_host_scroll = ScrollContainer.new()
+	_host_scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_host_scroll.offset_left = 8
+	_host_scroll.offset_top = 8
+	_host_scroll.offset_right = -8
+	_host_scroll.offset_bottom = -8
+	_host_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_host_panel.add_child(_host_scroll)
+	var vb := VBoxContainer.new()
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.custom_minimum_size = Vector2(528, 0)
+	vb.add_theme_constant_override("separation", 10)
+	_host_scroll.add_child(vb)
+	var title := Label.new()
+	title.text = "World Options"
+	title.add_theme_font_size_override("font_size", 22)
+	vb.add_child(title)
+	var info := Label.new()
+	info.text = "%s\nSeed: %s" % [str(data.get("world_name", "World")), str(data.get("seed", "?"))]
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(info)
+
+	_host_controls.clear()
+	_host_focus_idx = 0
+	var burn := CheckButton.new()
+	burn.text = "Items burn in fire and lava"
+	burn.button_pressed = bool(data.get("items_burn_enabled", true))
+	burn.focus_mode = Control.FOCUS_ALL
+	vb.add_child(burn)
+	_host_controls.append(burn)
+	var keep := CheckButton.new()
+	keep.text = "Keep inventory on death"
+	keep.button_pressed = bool(data.get("keep_inventory_enabled", false))
+	keep.focus_mode = Control.FOCUS_ALL
+	vb.add_child(keep)
+	_host_controls.append(keep)
+	var split_row := HBoxContainer.new()
+	vb.add_child(split_row)
+	var split_label := Label.new()
+	split_label.text = "Split-screen players:"
+	split_row.add_child(split_label)
+	var split := OptionButton.new()
+	for n in range(1, 5):
+		split.add_item("%d players" % n, n)
+	split.selected = clampi(split_players, 1, 4) - 1
+	split.focus_mode = Control.FOCUS_ALL
+	split_row.add_child(split)
+	_host_controls.append(split)
+
+	var hint := Label.new()
+	hint.text = "Controller: D-Pad navigate  |  A select  |  B cancel"
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(hint)
+
+	var play_btn := Button.new()
+	play_btn.text = "Play"
+	play_btn.focus_mode = Control.FOCUS_ALL
+	play_btn.pressed.connect(func():
+		if has_node("/root/Config"):
+			Config.begin_load_world(data)
+			Config.items_burn_enabled = burn.button_pressed
+			Config.keep_inventory_enabled = keep.button_pressed
+		var sp := clampi(split.get_selected_id(), 1, 4)
+		if has_node("/root/HCSettings"):
+			HCSettings.splitscreen_players = sp
+			HCSettings.save_settings()
+		_close_host_dialog()
+		var world_name := str(data.get("world_name", "world"))
+		var suffix := "\nPreparing %d-player local split-screen" % sp if sp > 1 else ""
+		_change_to_game("Loading %s...%s" % [world_name, suffix])
+	)
+	vb.add_child(play_btn)
+	_host_controls.append(play_btn)
+
+	var cancel_btn := Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.pressed.connect(_close_host_dialog)
+	vb.add_child(cancel_btn)
+	_host_controls.append(cancel_btn)
+	_host_focus_apply()
 
 
 func _show_load_confirm(data: Dictionary) -> void:
@@ -1231,6 +1374,7 @@ func _close_host_dialog() -> void:
 	if _host_panel != null and is_instance_valid(_host_panel):
 		_host_panel.queue_free()
 	_host_panel = null
+	_host_scroll = null
 	_host_controls.clear()
 	_host_focus_idx = 0
 
@@ -1244,6 +1388,12 @@ func _host_focus_apply() -> void:
 		if not is_instance_valid(c):
 			continue
 		c.modulate = Color(1.4, 1.35, 0.6) if i == _host_focus_idx else Color(1, 1, 1)
+	# Controller auto-scroll: keep the focused row inside the visible area,
+	# otherwise Create World / Play sit below the screen edge on small displays.
+	if _host_scroll != null and is_instance_valid(_host_scroll):
+		var focused: Control = _host_controls[_host_focus_idx]
+		if focused != null and is_instance_valid(focused):
+			_host_scroll.ensure_control_visible(focused)
 
 
 func _host_move(delta: int) -> void:

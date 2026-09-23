@@ -45,6 +45,8 @@ var speed: float = 2.5
 
 var player: Node3D
 var _provoked: bool = false
+var _provoked_t: float = 0.0
+const PROVOKED_TIMEOUT = 12.0
 var _attack_t: float = 0.0
 var _wander_t: float = 0.0
 var _wander_dir: Vector3 = Vector3.ZERO
@@ -68,6 +70,7 @@ var _dive_t: float = 0.0
 var _diving: bool = false
 var _landing: bool = false
 var _land_t: float = 0.0
+var _dragon_shot_t: float = 0.0
 
 # Universal limb animation (works for every mob type that names parts)
 var _anim_t: float = 0.0
@@ -78,6 +81,10 @@ var _anim_head: MeshInstance3D = null
 var _anim_body: MeshInstance3D = null
 var _anim_rest: Dictionary = {}  # node -> Vector3 rest rotation_degrees
 var _anim_style: String = "walk_biped"
+# All mob models are authored facing +X, while the mob body orients its -Z
+# toward the movement target. The model sits on this +90° Y pivot so the two
+# conventions line up (heads/eyes/snouts point where the mob is looking).
+var _model_root: Node3D = null
 
 
 func _build_quadruped_model(mat: StandardMaterial3D, model_data: Dictionary) -> void:
@@ -692,7 +699,10 @@ func _ready() -> void:
 	var mtype = model.get("type", "biped")
 
 	var mat = StandardMaterial3D.new()
-	mat.albedo_texture = Textures.get_texture(mob_id)
+	# The procedural mob "textures" are transparent-background inventory icons.
+	# On an opaque box they render black and the whole-body sprite covers every
+	# face, so the models are flat-colored instead and faces are built in 3D.
+	mat.albedo_color = Textures._get_color(mob_id)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.roughness = 1.0
 	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
@@ -701,7 +711,11 @@ func _ready() -> void:
 	var bm = BoxMesh.new()
 	bm.size = Vector3(0.7, 1.7, 0.7)
 
-	_anim_style = MobModelFactory.build(self, mob_id, mat, model)
+	_model_root = Node3D.new()
+	_model_root.name = "ModelRoot"
+	_model_root.rotation.y = PI / 2.0
+	add_child(_model_root)
+	_anim_style = MobModelFactory.build(_model_root, mob_id, mat, model)
 	_collect_anim_parts()
 
 
@@ -712,11 +726,33 @@ func is_ender_dragon() -> bool:
 func _aggressive() -> bool:
 	if player != null and "game_mode" in player and player.game_mode == GameSettings.GameMode.CREATIVE:
 		return false
-	if category == "hostile" or category == "boss":
+	if category == "hostile":
+		return true
+	if category == "boss":
+		# Red/Pink/White Dragon: neutral until the player hits them first.
+		# The Ender Dragon stays hostile as the final boss.
+		if _is_tameable_dragon():
+			return _provoked
 		return true
 	if category == "neutral":
 		return _provoked
 	return false
+
+
+const TAME_FISH := ["fish", "salmon", "cooked_fish"]
+
+func _is_tameable_dragon() -> bool:
+	return mob_id in ["red_dragon", "pink_dragon", "white_dragon"]
+
+
+func _player_holds_fish() -> bool:
+	if player == null or not is_instance_valid(player):
+		return false
+	var inv = player.get("inventory")
+	if inv == null or not inv.has_method("held"):
+		return false
+	var held = inv.held()
+	return held != null and str(held.item_id) in TAME_FISH
 
 
 
@@ -727,9 +763,10 @@ func _collect_anim_parts() -> void:
 	_anim_head = null
 	_anim_body = null
 	_anim_rest.clear()
-	for c in get_children():
-		if not (c is MeshInstance3D):
-			continue
+	# Parts live under the rotated ModelRoot pivot, so search recursively.
+	var meshes: Array[Node] = []
+	_collect_meshes(self, meshes)
+	for c in meshes:
 		var n = str(c.name)
 		if n.begins_with("anim_leg_"):
 			_anim_legs.append(c)
@@ -744,9 +781,16 @@ func _collect_anim_parts() -> void:
 		_anim_rest[c] = c.rotation_degrees
 
 
+func _collect_meshes(node: Node, out: Array) -> void:
+	for c in node.get_children():
+		if c is MeshInstance3D:
+			out.append(c)
+		_collect_meshes(c, out)
+
+
 func _apply_collision_size(box: BoxShape3D, shape: CollisionShape3D) -> void:
 	match mob_id:
-		"ender_dragon", "erebus_sovereign":
+		"ender_dragon", "erebus_sovereign", "red_dragon", "pink_dragon", "white_dragon":
 			box.size = Vector3(5.0, 2.2, 2.6); shape.position = Vector3(0, 1.2, 0)
 		"iron_golem":
 			box.size = Vector3(1.4, 2.7, 1.0); shape.position = Vector3(0, 1.35, 0)
@@ -874,6 +918,11 @@ func _physics_process(delta: float) -> void:
 		_hurt_flash_t -= delta
 		if _hurt_flash_t <= 0.0:
 			_set_hurt_overlay(false)
+	# Neutral mobs and tameable dragons calm down again after a while.
+	if _provoked:
+		_provoked_t -= delta
+		if _provoked_t <= 0.0:
+			_provoked = false
 	if has_meta("frozen_t"):
 		var ft = float(get_meta("frozen_t"))
 		if ft > 0.0:
@@ -1095,6 +1144,14 @@ func _finish_breeding(mate: Mob) -> void:
 
 
 func _physics_process_dragon(delta: float) -> void:
+	if bool(get_meta("tamed", false)) and has_meta("rider") and get_meta("rider") != null:
+		_control_tamed_dragon(delta)
+		return
+	# Tameable dragons are peaceful until provoked: they circle the sky, and
+	# fly down to the player when fish (their taming food) is held.
+	if _is_tameable_dragon() and not _aggressive():
+		_peaceful_dragon(delta)
+		return
 	# Kreisflug, dann landen (~10s) damit Spieler angreifen kann, dann wieder hoch.
 	if not _flight_ready:
 		_flight_center = Vector3(player.global_position.x, player.global_position.y + 2.0, player.global_position.z)
@@ -1166,6 +1223,97 @@ func _physics_process_dragon(delta: float) -> void:
 	_animate_model(delta)
 
 
+func _peaceful_dragon(delta: float) -> void:
+	# Neutral circling; comes down to the player when fish is held so it can
+	# be fed (tamed) without a fight. Never damages the player here.
+	if not _flight_ready:
+		_flight_center = Vector3(player.global_position.x, player.global_position.y + 2.0, player.global_position.z)
+		_flight_angle = 0.0
+		_flight_ready = true
+	_dive_t -= delta
+	_step_sound_t -= delta
+	if _step_sound_t <= 0.0:
+		_step_sound_t = randf_range(1.4, 2.2)
+		play_mob_sound("step")
+	var to_player = player.global_position - global_position
+	var dist = to_player.length()
+	var tamed := bool(get_meta("tamed", false))
+	var lured := _player_holds_fish() or tamed
+	# Tamed dragons keep their distance so they don't push the player around;
+	# they only close in to land when fish is held (or to be mounted).
+	var hover_dist := 3.2 if _player_holds_fish() else (6.0 if tamed else 0.0)
+
+	var target_pos: Vector3
+	var move_speed = speed
+	if lured and dist > hover_dist:
+		# Fly straight to the player and hover just above the ground.
+		target_pos = player.global_position + Vector3(0.0, 1.6, 0.0)
+		move_speed = speed * 1.1
+	elif lured:
+		# Hovering near the player: stay still so feeding/mounting is easy.
+		target_pos = global_position
+		move_speed = 0.0
+	else:
+		# Slow, wide circles high overhead.
+		_flight_angle += DRAGON_FLIGHT_SPEED * 0.55 * delta
+		var fly_y = _flight_center.y + DRAGON_FLIGHT_HEIGHT + 3.0 + sin(_flight_angle * 1.7) * 2.5
+		target_pos = _flight_center + Vector3(
+			cos(_flight_angle) * DRAGON_FLIGHT_RADIUS,
+			fly_y - _flight_center.y,
+			sin(_flight_angle) * DRAGON_FLIGHT_RADIUS
+		)
+		move_speed = speed * 0.6
+
+	if move_speed > 0.0:
+		var to_target = target_pos - global_position
+		if to_target.length() > 0.08:
+			velocity = to_target.normalized() * move_speed
+			if absf(velocity.x) + absf(velocity.z) > 0.01:
+				look_at(global_position + Vector3(velocity.x, 0, velocity.z), Vector3.UP)
+		else:
+			velocity = Vector3.ZERO
+		global_position += velocity * delta
+	_animate_model(delta)
+
+
+func _control_tamed_dragon(delta: float) -> void:
+	var rider = get_meta("rider")
+	if rider == null or not is_instance_valid(rider):
+		set_meta("rider", null)
+		return
+	_dragon_shot_t = maxf(0.0, _dragon_shot_t - delta)
+	var device = rider._joy_device() if rider.has_method("_joy_device") else 0
+	var axis := SplitScreenManager.read_move_axis(device)
+	var forward = -rider.head.global_transform.basis.z
+	var right = rider.head.global_transform.basis.x
+	forward.y = 0.0
+	right.y = 0.0
+	var horizontal = right.normalized() * axis.x + forward.normalized() * -axis.y
+	var vertical := 0.0
+	if Input.is_key_pressed(KEY_SPACE) or HCPad.pressed(device, HCPad.BTN_ACCEPT):
+		vertical += 1.0
+	if Input.is_key_pressed(KEY_SHIFT) or HCPad.pressed(device, HCPad.BTN_CANCEL):
+		vertical -= 1.0
+	velocity = (horizontal.normalized() * 13.0 if horizontal.length_squared() > 0.01 else Vector3.ZERO) + Vector3.UP * vertical * 9.0
+	if horizontal.length_squared() > 0.01:
+		look_at(global_position + horizontal.normalized(), Vector3.UP)
+	global_position += velocity * delta
+	rider.global_position = global_position + Vector3(0, 2.8, 0)
+	rider.velocity = Vector3.ZERO
+	var fire := Input.is_key_pressed(KEY_X) or Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) or HCPad.lt_held(device)
+	if fire and _dragon_shot_t <= 0.0:
+		_dragon_shot_t = 1.0
+		var tnt := preload("res://scenes/tnt_entity.tscn").instantiate()
+		get_tree().current_scene.add_child(tnt)
+		tnt.global_position = global_position + forward.normalized() * 3.5
+		if tnt.has_method("setup"):
+			var game = get_tree().get_first_node_in_group("game")
+			tnt.setup(game.world if game != null else null, game.renderer if game != null else null)
+		if tnt.has_method("launch"):
+			tnt.launch((forward + Vector3(0, 0.08, 0)).normalized() * 18.0)
+	_animate_model(delta)
+
+
 func _can_attack_player() -> bool:
 	return player != null and (not ("game_mode" in player) or player.game_mode != GameSettings.GameMode.CREATIVE)
 
@@ -1214,6 +1362,9 @@ func play_mob_sound(kind: String) -> void:
 		"villager": {"idle": "villager_hrmm", "hurt": "villager_hurt", "yes": "villager_yes", "no": "villager_no"},
 		"wolf": {"idle": "wolf_bark", "hurt": "wolf_bark"},
 		"ender_dragon": {"idle": "dragon_growl", "hurt": "dragon_roar", "attack": "dragon_roar", "step": "dragon_flap"},
+		"red_dragon": {"idle": "dragon_growl", "hurt": "dragon_roar", "attack": "dragon_roar", "step": "dragon_flap"},
+		"pink_dragon": {"idle": "dragon_growl", "hurt": "dragon_roar", "attack": "dragon_roar", "step": "dragon_flap"},
+		"white_dragon": {"idle": "dragon_growl", "hurt": "dragon_roar", "attack": "dragon_roar", "step": "dragon_flap"},
 		"bat": {"idle": "bat_chirp"},
 		"slime": {"hurt": "slime_squish", "step": "slime_jump"},
 		"magma_cube": {"hurt": "magma_squish", "step": "magma_squish"},
@@ -1244,6 +1395,7 @@ func take_hit(dmg: float) -> void:
 
 	health -= dmg
 	_provoked = true
+	_provoked_t = PROVOKED_TIMEOUT
 	_regen_t = 0.0
 	Audio.play("hit", -6.0)
 	# passive mobs flee away from the player

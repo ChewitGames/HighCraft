@@ -85,6 +85,10 @@ func _try_spawn() -> void:
 	var r = randf_range(SPAWN_MIN, SPAWN_MAX)
 	var px = int(player.global_position.x + cos(ang) * r)
 	var pz = int(player.global_position.z + sin(ang) * r)
+	# Never generate a chunk for a spawn attempt — that was a periodic main-
+	# thread terrain-generation hitch. Unloaded terrain simply has no mobs.
+	if not world.is_chunk_loaded(px, pz):
+		return
 	var sy = world.surface_height(px, pz)
 	var ground = str(world.get_block(px, sy, pz))
 	if ground == "water" or ground == "lava" or ground == "air":

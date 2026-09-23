@@ -22,12 +22,18 @@ const RADIUS = 4
 const SPAWN_X = 8
 const SPAWN_Z = 8
 const OVERWORLD_SKY_SHADER: Shader = preload("res://shaders/sky.gdshader")
+# Horizon-fog palette — mirrors the sky shader so terrain fades seamlessly into
+# the atmosphere at every time of day.
+const FOG_COLOR_DAY := Color(0.620, 0.722, 0.965)
+const FOG_COLOR_NIGHT := Color(0.030, 0.045, 0.090)
+const FOG_COLOR_DUSK := Color(0.850, 0.500, 0.250)
 var sky_material: ShaderMaterial
 var sky_resource: Sky
 const PORTAL_LINK = {
 "nether_portal": ["overworld", "hell"],
 "end_portal": ["overworld", "the_end"],
-"heaven_portal": ["overworld", "heaven"]
+"heaven_portal": ["overworld", "heaven"],
+"red_dimension_portal": ["overworld", "red_dimension"]
 }
 var dim_mgr: DimensionManager
 var current_dim: String = "overworld"
@@ -152,13 +158,14 @@ func _ready() -> void:
 	var sy = world.surface_height(SPAWN_X, SPAWN_Z)
 	if sy < 1:
 		sy = VoxelWorld.SEA_LEVEL
-	# Force-build spawn chunks WITH collision BEFORE the player exists (prevents fall-through)
+	# Force-build spawn chunks WITH collision BEFORE the player exists (prevents fall-through).
+	# 3x3 covers the spawn area; the rest is filled by preload + threaded streaming.
 	renderer.max_builds_per_call = 9999
 	renderer._use_threads = false
 	var scx = floori(float(SPAWN_X) / float(VoxelWorld.CHUNK_SIZE))
 	var scz = floori(float(SPAWN_Z) / float(VoxelWorld.CHUNK_SIZE))
-	for dx in range(-2, 3):
-		for dz in range(-2, 3):
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
 			renderer.build_chunk(scx + dx, scz + dz)
 	renderer.max_builds_per_call = 10
 	print("[HighCraft] spawn chunks loaded=", renderer.loaded_count(), " surface_y=", sy)
@@ -453,7 +460,12 @@ func _preload_chunks_async() -> void:
 	else:
 		centers.append(Vector3(SPAWN_X, 64, SPAWN_Z))
 
-	var radius := 6  # Minecraft-like spawn radius (~13x13 chunks)
+	# Minecraft-like spawn radius (~13x13 chunks). Every extra split player used
+	# to add another full sync build set (4 players apart = 676 main-thread
+	# chunk builds = the long frozen loading screen). Shrink the radius per
+	# extra player; threaded streaming tops the view off while you already
+	# stand in the world.
+	var radius := clampi(6 - (maxi(1, centers.size()) - 1), 2, 6)
 	var jobs: Array = []
 	for pos in centers:
 		var sx = floori(pos.x / VoxelWorld.CHUNK_SIZE)
@@ -551,6 +563,8 @@ func gather_save() -> Dictionary:
 		"fire_spread_enabled": Config.fire_spread_enabled,
 		"tnt_explosions_enabled": Config.tnt_explosions_enabled,
 		"tnt_chain_reaction_enabled": Config.tnt_chain_reaction_enabled,
+		"items_burn_enabled": Config.items_burn_enabled,
+		"keep_inventory_enabled": Config.keep_inventory_enabled,
 		"time_of_day": time_of_day,
 		"current_dim": current_dim,
 		"player": {
@@ -650,8 +664,8 @@ func _apply_save(data: Dictionary) -> void:
 		renderer._use_threads = false
 		var pcx = floori(pos.x / float(VoxelWorld.CHUNK_SIZE))
 		var pcz = floori(pos.z / float(VoxelWorld.CHUNK_SIZE))
-		for dx in range(-2, 3):
-			for dz in range(-2, 3):
+		for dx in range(-1, 2):
+			for dz in range(-1, 2):
 				renderer.build_chunk(pcx + dx, pcz + dz)
 	if has_method("_update_sky"):
 		_update_sky(sdim)
@@ -862,6 +876,8 @@ func sleep() -> void:
 func _music_ctx(dim: String) -> String:
 	if dim == "the_end":
 		return "end"
+	if dim == "red_dimension":
+		return "overworld"
 	return dim
 func travel_to(dim: String, _portal_block: String) -> void:
 	dim = Registry.normalize_dimension_id(dim)
@@ -939,7 +955,7 @@ func travel_to(dim: String, _portal_block: String) -> void:
 		pos = Vector3(sx + 0.5, float(sy) + 2.0, sz + 0.5)
 
 	# NEVER land inside / on a portal — breaks infinite nether↔overworld loops
-	if dim in ["the_end", "heaven"]:
+	if dim in ["the_end", "heaven", "red_dimension"]:
 		pos = _ensure_obsidian_spawn_platform(pos, dim)
 	pos = _safe_portal_exit(pos)
 
@@ -948,16 +964,39 @@ func travel_to(dim: String, _portal_block: String) -> void:
 	player.spawn_point = pos
 
 	if renderer != null:
-		renderer.max_builds_per_call = 9999
+		# Never mesh synchronously here: 49 chunk builds on the main thread was
+		# the multi-second freeze on every portal use. Queue them on the worker
+		# pipeline at high priority and wait (bounded) for the standing area to
+		# have collision. The loading overlay drawn earlier hides the gap, and a
+		# timeout keeps a slow chunk from ever softlocking the travel screen.
 		var pcx = floori(pos.x / float(VoxelWorld.CHUNK_SIZE))
 		var pcz = floori(pos.z / float(VoxelWorld.CHUNK_SIZE))
+		# The build queue is LIFO, so request the outer ring first and the
+		# centre last — the chunk the player stands in must mesh first, or the
+		# player falls through the not-yet-collidable spawn platform.
+		var offsets: Array = []
 		for dx in range(-3, 4):
 			for dz in range(-3, 4):
-				renderer.build_chunk(pcx + dx, pcz + dz)
-		renderer.max_builds_per_call = 8
+				offsets.append(Vector2i(dx, dz))
+		offsets.sort_custom(func(a, b): return (a.x * a.x + a.y * a.y) > (b.x * b.x + b.y * b.y))
+		for o in offsets:
+			renderer.request_priority_build(pcx + o.x, pcz + o.y)
+		var wait_t := 6.0
+		while wait_t > 0.0 and not renderer.collision_ready_at(pos):
+			wait_t -= get_process_delta_time()
+			# Hold the player on the spawn point while the standing chunk is
+			# still meshing; otherwise the player drops into the void below the
+			# End/Heaven platform before its collision exists.
+			player.global_position = pos
+			player.velocity = Vector3.ZERO
+			await get_tree().process_frame
 
 	if dim == "the_end":
 		_spawn_ender_dragon()
+	elif dim == "red_dimension" and mob_manager != null:
+		for dragon_id in ["red_dragon", "pink_dragon", "white_dragon"]:
+			var dragon_pos := pos + Vector3(randf_range(-22.0, 22.0), 14.0, randf_range(-22.0, 22.0))
+			mob_manager.spawn(dragon_id, dragon_pos)
 
 	# Long cooldown so the player can walk away before portals re-trigger
 	_portal_cd = 6.0
@@ -1049,7 +1088,7 @@ func _is_portal_at(wx: int, wy: int, wz: int) -> bool:
 	if world == null:
 		return false
 	var id = str(world.get_block(wx, wy, wz))
-	return id in ["nether_portal", "end_portal", "heaven_portal"]
+	return id in ["nether_portal", "end_portal", "heaven_portal", "red_dimension_portal"]
 
 
 func _offset_from_portals(from: Vector3) -> Vector3:
@@ -1316,10 +1355,10 @@ func _setup_environment() -> void:
 			# terrain doesn't just hard-pop/disappear at the chunk load edge.
 			var fog_dist = float(clampi(hs.render_distance, 2, 32)) * VoxelWorld.CHUNK_SIZE
 			env.fog_enabled = true
-			env.fog_light_color = Color(0.72, 0.82, 0.95)
-			env.fog_density = 0.0008
-			env.fog_depth_begin = fog_dist * 0.55
-			env.fog_depth_end = fog_dist * 1.05
+			env.fog_light_color = FOG_COLOR_DAY
+			env.fog_density = 0.0011
+			env.fog_depth_begin = fog_dist * 0.5
+			env.fog_depth_end = fog_dist * 0.98
 			# The sky is infinitely far away, so Godot's default sky fog influence
 			# covers the complete shader with fog_light_color (a flat blue screen).
 			# Keep distance fog on terrain, but never apply it to the sky shader.
@@ -1346,10 +1385,10 @@ func _update_sky(dim: String) -> void:
 	if dim == "overworld":
 		sky_resource.sky_material = sky_material
 		env.background_mode = Environment.BG_SKY
-		env.background_color = Color(0.48, 0.68, 0.94)
+		env.background_color = Color(0.455, 0.655, 1.0)
 		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-		env.ambient_light_energy = 0.85
-		env.fog_light_color = Color(0.72, 0.82, 0.95)
+		env.ambient_light_energy = 1.1
+		env.fog_light_color = FOG_COLOR_DAY
 		if sun:
 			sun.visible = true
 		if moon:
@@ -1392,6 +1431,18 @@ func _update_sky(dim: String) -> void:
 		if moon:
 			moon.visible = false
 		_daynight = false
+	elif dim == "red_dimension":
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color(0.035, 0.12, 0.38)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.55, 0.68, 0.95)
+		env.ambient_light_energy = 0.9
+		env.fog_enabled = false
+		if sun:
+			sun.visible = true
+		if moon:
+			moon.visible = false
+		_daynight = false
 	env.set_meta("highcraft_dimension", dim)
 	if dim == "overworld":
 		_update_celestial_lights()
@@ -1411,12 +1462,19 @@ func _update_celestial_lights() -> void:
 	var moonlight := 1.0 - smoothstep(-0.05, 0.22, elevation)
 	if sun != null:
 		sun.rotation = Vector3(-angle, 0.0, 0.0)
-		sun.light_energy = daylight * 1.2
+		# Voxel materials now bake the per-face brightness curve, so the sun is
+		# a softer, shadow-casting key light rather than the main shading term.
+		sun.light_energy = daylight * 0.5
 		sun.visible = daylight > 0.01
 	if moon != null:
 		moon.rotation = Vector3(PI - angle, 0.0, 0.0)
-		moon.light_energy = moonlight * 0.22
+		moon.light_energy = moonlight * 0.28
 		moon.visible = moonlight > 0.01
+	if env != null:
+		# Terrain fog follows the same day → dusk → night curve as the sky.
+		var fog := FOG_COLOR_NIGHT.lerp(FOG_COLOR_DAY, daylight)
+		var dusk_amt := exp(-pow(elevation / 0.22, 2.0))
+		env.fog_light_color = fog.lerp(FOG_COLOR_DUSK, dusk_amt * 0.5)
 	if sky_material != null:
 		sky_material.set_shader_parameter("time_of_day", time_of_day)
 func is_night() -> bool:
@@ -1642,7 +1700,7 @@ func spawn_firework(spawn_position: Vector3, direction: Vector3 = Vector3.UP) ->
 		
 		
 func _is_portal_block(block_id: String) -> bool:
-	return block_id == "nether_portal" or block_id == "end_portal" or block_id == "heaven_portal"
+	return block_id == "nether_portal" or block_id == "end_portal" or block_id == "heaven_portal" or block_id == "red_dimension_portal"
 
 
 func _tick_hoppers(delta: float) -> void:
@@ -1889,6 +1947,10 @@ func _tick_fire(delta: float) -> void:
 				continue
 			var fuel = cell + offset
 			var target = fuel + Vector3i(0, 1, 0)
+			# Fire spread into a chunk the streamer hasn't reached must not
+			# synchronously generate it (set_block -> get_chunk -> generate).
+			if not world.is_chunk_loaded(target.x, target.z):
+				continue
 			var fuel_id := str(world.get_block(fuel.x, fuel.y, fuel.z))
 			var data = Registry.get_block(fuel_id)
 			var flammable := fuel_id in ["wood", "planks", "log", "leaves", "wool", "bookshelf", "fence", "chest", "tnt"]
@@ -1916,7 +1978,8 @@ func _tick_farming(delta: float) -> void:
 	var pcz = int(floor(player.global_position.z / 16.0))
 	for dx in range(-2, 3):
 		for dz in range(-2, 3):
-			var ch = world.get_chunk(pcx + dx, pcz + dz)
+			# Crops only grow in live chunks; never generate one for a farm tick.
+			var ch = world.chunks.get(Vector2i(pcx + dx, pcz + dz))
 			if ch != null:
 				Farming.tick_chunk(world, renderer, ch, is_raining)
 
@@ -2151,11 +2214,17 @@ func _tick_fluids(delta: float) -> void:
 					continue
 				var below = str(world.get_block(c.x, c.y - 1, c.z))
 				if below == "air":
+					# Vertical flow stays in this chunk's column; safe.
 					renderer.edit_block(c.x, c.y - 1, c.z, id)
 					continue
 				for d in [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]:
 					var n = c + d
 					if str(world.get_block(n.x, n.y, n.z)) == "air":
+						# Flowing into a chunk the streamer hasn't reached yet would
+						# synchronously generate it (set_block -> get_chunk). Skip;
+						# the fluid flows on once the chunk is live.
+						if not world.is_chunk_loaded(n.x, n.z):
+							continue
 						var under = str(world.get_block(n.x, n.y - 1, n.z))
 						if under != "air" or id == "lava":
 							renderer.edit_block(n.x, n.y, n.z, id)
@@ -2169,25 +2238,20 @@ func _tick_end_crystals(delta: float) -> void:
 	if _crystal_tick > 0.0:
 		return
 	_crystal_tick = 0.4
-	var crystals: Array = []
-	if player != null:
-		var pc := Vector3i(floori(player.global_position.x), floori(player.global_position.y), floori(player.global_position.z))
-		for dx in range(-16, 17):
-			for dz in range(-16, 17):
-				for dy in range(-4, 12):
-					var c = pc + Vector3i(dx, dy, dz)
-					if str(world.get_block(c.x, c.y, c.z)) == "end_crystal":
-						crystals.append(c)
-	# Heal dragon if any crystal exists
-	if _dragon_ref != null and is_instance_valid(_dragon_ref) and crystals.size() > 0:
-		if "health" in _dragon_ref and "max_health" in _dragon_ref:
-			_dragon_ref.health = minf(float(_dragon_ref.max_health), float(_dragon_ref.health) + 2.0)
-	# 4 crystals around the central podium revive the dragon
+	# The crystals that heal/revive the dragon sit on the four fixed podium
+	# cells. The old code scanned a 33x33x16 block box around the player every
+	# 0.4s (~17.4k get_block calls) and only ever found these same four cells.
+	# Checking them directly is exact, ~4000x cheaper, and never reads unloaded
+	# terrain.
 	var podium := [Vector3i(8, 56, 5), Vector3i(8, 56, 11), Vector3i(5, 56, 8), Vector3i(11, 56, 8)]
 	var around := 0
 	for p in podium:
 		if str(world.get_block(p.x, p.y, p.z)) == "end_crystal":
 			around += 1
+	# Heal dragon while any podium crystal stands
+	if _dragon_ref != null and is_instance_valid(_dragon_ref) and around > 0:
+		if "health" in _dragon_ref and "max_health" in _dragon_ref:
+			_dragon_ref.health = minf(float(_dragon_ref.max_health), float(_dragon_ref.health) + 2.0)
 	if around >= 4 and (_dragon_ref == null or not is_instance_valid(_dragon_ref)):
 		_spawn_ender_dragon()
 

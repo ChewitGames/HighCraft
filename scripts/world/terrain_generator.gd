@@ -26,6 +26,10 @@ var dimension: String = "overworld"
 var structures_enabled: bool = true
 var _noise: FastNoiseLite
 var _noise2: FastNoiseLite
+var _biome_noise: FastNoiseLite
+var _moisture_noise: FastNoiseLite
+var _cave_noise: FastNoiseLite
+var _cave_noise2: FastNoiseLite
 
 
 func _init(p_seed: int = 0, p_world_type: String = "normal",
@@ -41,6 +45,36 @@ func _init(p_seed: int = 0, p_world_type: String = "normal",
 	_noise2.seed = p_seed + 7
 	_noise2.noise_type = FastNoiseLite.TYPE_PERLIN
 	_noise2.frequency = 0.03
+	_biome_noise = FastNoiseLite.new()
+	_biome_noise.seed = p_seed + 41
+	_biome_noise.frequency = 0.0035
+	_moisture_noise = FastNoiseLite.new()
+	_moisture_noise.seed = p_seed + 97
+	_moisture_noise.frequency = 0.0045
+	_cave_noise = FastNoiseLite.new()
+	_cave_noise.seed = p_seed + 131
+	_cave_noise.noise_type = FastNoiseLite.TYPE_PERLIN
+	_cave_noise.frequency = 0.030
+	_cave_noise2 = FastNoiseLite.new()
+	_cave_noise2.seed = p_seed + 277
+	_cave_noise2.noise_type = FastNoiseLite.TYPE_PERLIN
+	_cave_noise2.frequency = 0.011
+
+
+func biome_at(wx: int, wz: int) -> String:
+	if dimension != "overworld":
+		return dimension
+	var temperature := _biome_noise.get_noise_2d(wx, wz)
+	var moisture := _moisture_noise.get_noise_2d(wx, wz)
+	if temperature < -0.48:
+		return "ice"
+	if temperature < -0.18:
+		return "snow"
+	if temperature > 0.42 and moisture < 0.18:
+		return "desert"
+	if moisture > 0.25:
+		return "spruce_forest"
+	return "overworld"
 
 
 func height_at(wx: int, wz: int) -> int:
@@ -58,6 +92,8 @@ func generate(chunk) -> void:
 		_generate_end(chunk)
 	elif dimension == "heaven":
 		_generate_heaven(chunk)
+	elif dimension == "red_dimension":
+		_generate_red_dimension(chunk)
 	else:
 		_generate_normal(chunk)
 	chunk.generated = true
@@ -137,6 +173,11 @@ func _generate_flat(chunk) -> void:
 			chunk.set_local(x, 4, z, "grass_block")
 
 
+func _generate_red_dimension(chunk) -> void:
+	# Familiar terrain under a permanent clear deep-blue sky.
+	_generate_normal(chunk)
+
+
 func _generate_normal(chunk) -> void:
 	var base_x = chunk.cx * CHUNK_SIZE
 	var base_z = chunk.cz * CHUNK_SIZE
@@ -158,18 +199,92 @@ func _generate_normal(chunk) -> void:
 				chunk.set_local(x, y, z, "stone")
 			for y in range(maxi(3, h - 3), h):
 				chunk.set_local(x, y, z, "dirt")
+			var biome := biome_at(base_x + x, base_z + z)
 			var near_water = h <= SEA_LEVEL + 1
-			if near_water:
+			if biome == "desert" or near_water:
 				chunk.set_local(x, h, z, "sand")
+				if biome == "desert":
+					for sy in range(maxi(3, h - 3), h):
+						chunk.set_local(x, sy, z, "sandstone")
+			elif biome == "ice":
+				chunk.set_local(x, h, z, "snow_block")
+			elif biome == "snow":
+				chunk.set_local(x, h, z, "snow_block")
 			else:
 				chunk.set_local(x, h, z, "grass_block")
 			for y in range(h + 1, SEA_LEVEL):
-				chunk.set_local(x, y, z, "water")
+				chunk.set_local(x, y, z, "ice" if biome in ["ice", "snow"] and y == SEA_LEVEL - 1 else "water")
 
 	_place_ores(chunk, rng, heights)
+	_carve_caves(chunk, heights)
 	_place_trees(chunk, rng, heights)
 	if structures_enabled:
-		Structures.maybe_build_overworld(chunk, rng, heights)
+		Structures.maybe_build_overworld(chunk, rng, heights, biome_at(base_x + 8, base_z + 8))
+
+
+# ore_id -> [min_y, max_y, chance per cave-wall block]
+# Rare ore is exposed in cave walls so caving is the rewarding way to mine.
+const CAVE_ORES = {
+	"coal_ore": [5, 100, 0.006],
+	"copper_ore": [5, 80, 0.004],
+	"iron_ore": [5, 60, 0.005],
+	"gold_ore": [5, 32, 0.0025],
+	"redstone_ore": [5, 18, 0.0025],
+	"lapis_ore": [10, 30, 0.0015],
+	"diamond_ore": [5, 15, 0.0012],
+	"emerald_ore": [5, 28, 0.0008],
+}
+
+const _CAVE_NEIGHBOURS = [Vector3i(1, 0, 0), Vector3i(-1, 0, 0), Vector3i(0, 1, 0),
+	Vector3i(0, -1, 0), Vector3i(0, 0, 1), Vector3i(0, 0, -1)]
+
+
+func _carve_caves(chunk, heights: Dictionary) -> void:
+	# 3D noise carves a connected network of winding tunnels and caverns. A
+	# second, slower noise modulates the tunnel radius so caves vary in size
+	# and shape instead of being a single straight hole.
+	var base_x = chunk.cx * CHUNK_SIZE
+	var base_z = chunk.cz * CHUNK_SIZE
+	var rng = RandomNumberGenerator.new()
+	rng.seed = hash(Vector3i(seed_val + 53, chunk.cx, chunk.cz))
+	var carved: Array[Vector3i] = []
+	for x in range(CHUNK_SIZE):
+		for z in range(CHUNK_SIZE):
+			var surface = heights[Vector2i(x, z)]
+			if surface <= 6:
+				continue
+			for y in range(5, surface - 2):
+				if chunk.get_local(x, y, z) != "stone":
+					continue
+				var wx = base_x + x
+				var wz = base_z + z
+				var n = _cave_noise.get_noise_3d(wx, y, wz)
+				var radius = 0.016 + (_cave_noise2.get_noise_3d(wx, y, wz) + 1.0) * 0.034
+				if abs(n) < radius:
+					chunk.set_local(x, y, z, "air")
+					carved.append(Vector3i(x, y, z))
+	# Ore veins, loot chests, lava pools and cobwebs dress the cave walls so
+	# caves have contents worth exploring for.
+	for c in carved:
+		for d in _CAVE_NEIGHBOURS:
+			var p = c + d
+			if p.x < 0 or p.x >= CHUNK_SIZE or p.z < 0 or p.z >= CHUNK_SIZE:
+				continue
+			if p.y <= 0 or p.y >= WORLD_HEIGHT:
+				continue
+			if chunk.get_local(p.x, p.y, p.z) != "stone":
+				continue
+			for ore in CAVE_ORES:
+				var cfg = CAVE_ORES[ore]
+				if p.y >= cfg[0] and p.y <= cfg[1] and rng.randf() < cfg[2]:
+					chunk.set_local(p.x, p.y, p.z, ore)
+					break
+		if rng.randf() < 0.0004:
+			chunk.set_local(c.x, c.y, c.z, "chest")
+		elif c.y <= 14 and rng.randf() < 0.01:
+			chunk.set_local(c.x, c.y, c.z, "lava")
+		elif rng.randf() < 0.004:
+			chunk.set_local(c.x, c.y, c.z, "cobweb")
 
 
 func _place_ores(chunk, rng: RandomNumberGenerator, heights: Dictionary) -> void:
@@ -202,6 +317,9 @@ func _place_trees(chunk, rng: RandomNumberGenerator, heights: Dictionary) -> voi
 		var x = rng.randi_range(2, CHUNK_SIZE - 3)
 		var z = rng.randi_range(2, CHUNK_SIZE - 3)
 		var surface = heights[Vector2i(x, z)]
+		var biome := biome_at(chunk.cx * CHUNK_SIZE + x, chunk.cz * CHUNK_SIZE + z)
+		if biome in ["desert", "ice"]:
+			continue
 		if surface <= SEA_LEVEL + 1:
 			continue
 		if chunk.get_local(x, surface, z) != "grass_block":
@@ -218,4 +336,4 @@ func _place_trees(chunk, rng: RandomNumberGenerator, heights: Dictionary) -> voi
 						if chunk.get_local(lx, ly, lz) == "air":
 							chunk.set_local(lx, ly, lz, "oak_leaves")
 		for ty in range(surface + 1, top):
-			chunk.set_local(x, ty, z, "oak_log")
+			chunk.set_local(x, ty, z, "spruce_log" if biome in ["snow", "spruce_forest"] else "oak_log")

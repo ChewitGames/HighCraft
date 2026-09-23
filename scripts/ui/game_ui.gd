@@ -708,6 +708,14 @@ func _build_info() -> void:
 func _make_slot() -> Dictionary:
 	var panel = Panel.new()
 	panel.custom_minimum_size = Vector2(SLOT, SLOT)
+	# Classic recessed inventory slot: dark well with a near-black bezel.
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.29, 0.29, 0.29, 1.0)
+	sb.border_color = Color(0.09, 0.09, 0.09, 1.0)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(0)
+	sb.set_anti_aliased(false)
+	panel.add_theme_stylebox_override("panel", sb)
 
 	var icon = TextureRect.new()
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -818,7 +826,25 @@ func _build_panel() -> void:
 	_panel.custom_minimum_size = Vector2(1100, 620)
 	_panel.position = -_panel.custom_minimum_size / 2.0
 	_panel.visible = false
+	# Stone-toned GUI frame like the classic inventory screen.
+	var psb := StyleBoxFlat.new()
+	psb.bg_color = Color(0.30, 0.30, 0.30, 0.98)
+	psb.border_color = Color(0.12, 0.12, 0.12, 1.0)
+	psb.set_border_width_all(3)
+	psb.set_corner_radius_all(0)
+	_panel.add_theme_stylebox_override("panel", psb)
 	add_child(_panel)
+
+	# Tiled stone texture backdrop (the game's own block texture).
+	var stone_bg := TextureRect.new()
+	stone_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	stone_bg.texture = Textures.get_texture("stone")
+	stone_bg.stretch_mode = TextureRect.STRETCH_TILE
+	stone_bg.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	stone_bg.modulate = Color(0.85, 0.85, 0.85, 1.0)
+	stone_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(stone_bg)
+	_panel.move_child(stone_bg, 0)
 
 	var margin = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1068,6 +1094,10 @@ func _drop_hovered_item(drop_all: bool = false) -> void:
 
 	var bag = _hovered_slot["bag"]
 	var index = _hovered_slot["index"]
+	# Nur echte Inventar-Taschen dürfen gedroppt werden. craft/furnace/anvil/
+	# chest/dispenser sind fremde Arrays – _bag() würde sonst auf Rüstung fallen.
+	if bag != "hotbar" and bag != "main" and bag != "armor":
+		return
 	var arr = _bag(bag)
 
 	if index >= arr.size() or arr[index] == null:
@@ -1791,8 +1821,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			if get_viewport(): get_viewport().set_input_as_handled()
 			return
 
-	# --- X / Square → Rechtsklick auf Slot ---
-	if HCPad.is_attack_button(btn):
+	# --- X / Square → Rechtsklick auf Slot (Split) ---
+	if HCPad.is_left_action(btn):
 		if _mode in ["inventory", "table", "furnace", "anvil", "dispenser", "chest", "enchant"]:
 			_controller_activate_slot(true)
 			get_viewport().set_input_as_handled()

@@ -35,6 +35,7 @@ var _palette: Dictionary = {
 	"pig": [255, 170, 170], "chicken": [250, 250, 240], "rabbit": [200, 170, 140],
 	"horse": [160, 110, 70], "ocelot": [230, 190, 80], "squid": [40, 50, 90],
 	"bat": [50, 40, 35], "villager": [90, 70, 50], "snow_golem": [230, 240, 250],
+	"red_dragon": [210, 25, 15], "pink_dragon": [245, 85, 155], "white_dragon": [235, 240, 250],
 	"iron_golem": [180, 180, 185], "erebite": [40, 10, 50], "zombie_pigman": [200, 150, 80],
 	"wolf": [180, 180, 185], "spider": [50, 40, 40], "cave_spider": [40, 70, 40],
 	"zombie": [50, 90, 50], "husk": [180, 160, 110], "zombie_villager": [60, 100, 55],

@@ -11,8 +11,9 @@ extends RefCounted
 ##   Y = top    (Xbox Y / PS Triangle / Switch X)
 ##
 ## Gameplay actions (Minecraft-style):
-##   attack / mine  → RT (trigger) + X + LMB
+##   attack / mine  → RT (trigger) + LMB
 ##   use / place    → LT (trigger) + RB + RMB
+##   drop item      → X (left face)
 ##   inventory      → Y
 ##   pause          → Start
 ##   accept         → A
@@ -29,7 +30,7 @@ const AXIS_RT := JOY_AXIS_TRIGGER_RIGHT
 # ---- face / system ----
 const BTN_ACCEPT := JOY_BUTTON_A          # confirm / jump
 const BTN_CANCEL := JOY_BUTTON_B          # back / close
-const BTN_ATTACK_ALT := JOY_BUTTON_X      # secondary attack
+const BTN_DROP := JOY_BUTTON_X            # drop held item
 const BTN_INVENTORY := JOY_BUTTON_Y       # open inventory
 const BTN_PAUSE := JOY_BUTTON_START
 const BTN_SELECT := JOY_BUTTON_BACK       # chat / select
@@ -78,9 +79,10 @@ static func lt_held(device: int) -> bool:
 	return lt(device) > TRIGGER_THRESHOLD
 
 
-## Attack: RT edge or X (left face). Caller tracks previous RT/X for edges.
-static func is_attack_button(button: int) -> bool:
-	return button == BTN_ATTACK_ALT
+## Left face button (X / Square): drops the held item in gameplay. The
+## inventory UI reuses it for the slot split (right-click) action.
+static func is_left_action(button: int) -> bool:
+	return button == BTN_DROP
 
 
 ## Use / interact / place: RB or (caller handles LT via axis).

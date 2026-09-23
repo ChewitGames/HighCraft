@@ -71,7 +71,7 @@ static func build(host: Node3D, mob_id: String, mat: StandardMaterial3D, model: 
 			_iron_golem(host, mat); return "walk_biped"
 		"wither":
 			_wither(host, mat); return "float"
-		"ender_dragon", "erebus_sovereign":
+		"ender_dragon", "erebus_sovereign", "red_dragon", "pink_dragon", "white_dragon":
 			_dragon(host, mat); return "fly_dragon"
 		"charlie_emily":
 			_charlie(host, mat); return "walk_biped"
@@ -123,6 +123,7 @@ static func _eyes(host: Node3D, origin: Vector3, spread: float, col: Color, size
 static func _cow(host: Node3D, mat: Material, mushroom: bool) -> void:
 	_box(host, "anim_body", Vector3(1.7, 0.85, 0.95), Vector3(0, 0.95, 0), mat)
 	_box(host, "anim_head", Vector3(0.55, 0.5, 0.5), Vector3(0.95, 1.25, 0), mat)
+	_eyes(host, Vector3(1.24, 1.33, 0), 0.12, Color(0.05, 0.04, 0.03))
 	_box(host, "snout", Vector3(0.22, 0.2, 0.32), Vector3(1.28, 1.12, 0), mat)
 	for s in [-1, 1]:
 		_box(host, "horn", Vector3(0.08, 0.22, 0.08), Vector3(0.85, 1.55, s * 0.18), mat)
@@ -140,6 +141,7 @@ static func _cow(host: Node3D, mat: Material, mushroom: bool) -> void:
 static func _pig(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(1.15, 0.7, 0.75), Vector3(0, 0.7, 0), mat)
 	_box(host, "anim_head", Vector3(0.5, 0.45, 0.5), Vector3(0.7, 0.85, 0), mat)
+	_eyes(host, Vector3(0.97, 0.93, 0), 0.12, Color(0.05, 0.04, 0.03))
 	_box(host, "snout", Vector3(0.16, 0.16, 0.28), Vector3(1.0, 0.78, 0), _col(Color(1.0, 0.7, 0.7)))
 	_box(host, "anim_tail", Vector3(0.12, 0.12, 0.22), Vector3(-0.62, 0.85, 0), mat)
 	for i in range(4):
@@ -152,6 +154,7 @@ static func _sheep(host: Node3D, mat: Material) -> void:
 	var wool := _col(Color(0.95, 0.95, 0.97))
 	_box(host, "anim_body", Vector3(1.25, 0.95, 0.85), Vector3(0, 0.95, 0), wool)
 	_box(host, "anim_head", Vector3(0.42, 0.38, 0.38), Vector3(0.78, 1.05, 0), mat)
+	_eyes(host, Vector3(1.0, 1.12, 0), 0.1, Color(0.05, 0.04, 0.03))
 	for i in range(4):
 		var x := 0.38 if i < 2 else -0.38
 		var z := 0.24 if i % 2 == 0 else -0.24
@@ -161,6 +164,7 @@ static func _sheep(host: Node3D, mat: Material) -> void:
 static func _wolf(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(1.05, 0.48, 0.42), Vector3(0, 0.62, 0), mat)
 	_box(host, "anim_head", Vector3(0.38, 0.34, 0.34), Vector3(0.62, 0.78, 0), mat)
+	_eyes(host, Vector3(0.83, 0.85, 0), 0.09, Color(0.05, 0.04, 0.03))
 	_box(host, "snout", Vector3(0.28, 0.16, 0.18), Vector3(0.9, 0.7, 0), mat)
 	for s in [-1, 1]:
 		_box(host, "ear", Vector3(0.1, 0.16, 0.08), Vector3(0.55, 1.02, s * 0.12), mat)
@@ -175,6 +179,7 @@ static func _horse(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(1.7, 0.7, 0.6), Vector3(0, 1.15, 0), mat)
 	_box(host, "neck", Vector3(0.32, 0.7, 0.32), Vector3(0.75, 1.55, 0), mat, Vector3(0, 0, -20))
 	_box(host, "anim_head", Vector3(0.38, 0.28, 0.28), Vector3(1.05, 1.95, 0), mat)
+	_eyes(host, Vector3(1.26, 2.0, 0), 0.08, Color(0.05, 0.04, 0.03))
 	_box(host, "snout", Vector3(0.32, 0.18, 0.2), Vector3(1.32, 1.88, 0), mat)
 	_box(host, "anim_tail", Vector3(0.55, 0.14, 0.14), Vector3(-0.95, 1.15, 0), mat, Vector3(0, 0, 30))
 	for i in range(4):
@@ -186,6 +191,7 @@ static func _horse(host: Node3D, mat: Material) -> void:
 static func _ocelot(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(1.05, 0.32, 0.34), Vector3(0, 0.42, 0), mat)
 	_box(host, "anim_head", Vector3(0.3, 0.26, 0.28), Vector3(0.58, 0.52, 0), mat)
+	_eyes(host, Vector3(0.75, 0.57, 0), 0.07, Color(0.05, 0.04, 0.03))
 	for s in [-1, 1]:
 		_box(host, "ear", Vector3(0.08, 0.12, 0.06), Vector3(0.52, 0.7, s * 0.1), mat)
 	_box(host, "anim_tail", Vector3(0.7, 0.08, 0.08), Vector3(-0.75, 0.48, 0), mat)
@@ -201,6 +207,7 @@ static func _ocelot(host: Node3D, mat: Material) -> void:
 static func _rabbit(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(0.5, 0.32, 0.32), Vector3(0, 0.32, 0), mat)
 	_box(host, "anim_head", Vector3(0.24, 0.22, 0.22), Vector3(0.28, 0.48, 0), mat)
+	_eyes(host, Vector3(0.42, 0.53, 0), 0.06, Color(0.05, 0.04, 0.03), 0.05)
 	for s in [-1, 1]:
 		_box(host, "ear", Vector3(0.07, 0.32, 0.06), Vector3(0.22, 0.72, s * 0.07), mat)
 	_box(host, "anim_leg_0", Vector3(0.16, 0.28, 0.14), Vector3(-0.12, 0.16, 0.1), mat)
@@ -212,6 +219,7 @@ static func _rabbit(host: Node3D, mat: Material) -> void:
 static func _chicken(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(0.5, 0.4, 0.42), Vector3(0, 0.55, 0), mat)
 	_box(host, "anim_head", Vector3(0.26, 0.26, 0.26), Vector3(0.28, 0.85, 0), mat)
+	_eyes(host, Vector3(0.42, 0.9, 0), 0.06, Color(0.05, 0.04, 0.03), 0.05)
 	_box(host, "beak", Vector3(0.14, 0.08, 0.1), Vector3(0.46, 0.82, 0), _col(Color(1.0, 0.7, 0.1)))
 	_box(host, "comb", Vector3(0.08, 0.12, 0.08), Vector3(0.28, 1.02, 0), _col(Color(0.85, 0.1, 0.1)))
 	_box(host, "anim_wing_0", Vector3(0.12, 0.28, 0.36), Vector3(0, 0.58, 0.28), mat)
@@ -231,6 +239,7 @@ static func _squid(host: Node3D, mat: Material) -> void:
 static func _bat(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(0.28, 0.28, 0.22), Vector3(0, 0.4, 0), mat)
 	_box(host, "anim_head", Vector3(0.22, 0.2, 0.2), Vector3(0.18, 0.52, 0), mat)
+	_eyes(host, Vector3(0.31, 0.56, 0), 0.05, Color(0.05, 0.04, 0.03), 0.045)
 	_box(host, "anim_wing_0", Vector3(0.08, 0.55, 0.7), Vector3(0, 0.45, 0.45), mat)
 	_box(host, "anim_wing_1", Vector3(0.08, 0.55, 0.7), Vector3(0, 0.45, -0.45), mat)
 
@@ -268,8 +277,9 @@ static func _villager(host: Node3D, mat: Material, zombie: bool) -> void:
 	var robe := _col(Color(0.45, 0.32, 0.18) if not zombie else Color(0.28, 0.4, 0.22))
 	_box(host, "anim_body", Vector3(0.55, 1.15, 0.4), Vector3(0, 0.95, 0), robe)
 	_box(host, "anim_head", Vector3(0.5, 0.5, 0.5), Vector3(0, 1.72, 0), mat)
+	_eyes(host, Vector3(0.27, 1.78, 0), 0.11, Color(0.05, 0.04, 0.03))
 	_box(host, "nose", Vector3(0.12, 0.18, 0.22), Vector3(0.28, 1.62, 0), mat)
-	_box(host, "brow", Vector3(0.5, 0.12, 0.12), Vector3(0, 1.88, 0.18), mat)
+	_box(host, "brow", Vector3(0.12, 0.12, 0.5), Vector3(0.18, 1.88, 0), mat)
 	_box(host, "anim_leg_0", Vector3(0.2, 0.45, 0.2), Vector3(-0.12, 0.22, 0), robe)
 	_box(host, "anim_leg_1", Vector3(0.2, 0.45, 0.2), Vector3(0.12, 0.22, 0), robe)
 	if zombie:
@@ -288,6 +298,7 @@ static func _witch(host: Node3D, mat: Material) -> void:
 static func _pigman(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(0.55, 1.05, 0.32), Vector3(0, 1.05, 0), mat)
 	_box(host, "anim_head", Vector3(0.5, 0.45, 0.5), Vector3(0, 1.72, 0), mat)
+	_eyes(host, Vector3(0.27, 1.79, 0), 0.11, Color(0.05, 0.04, 0.03))
 	_box(host, "snout", Vector3(0.18, 0.16, 0.28), Vector3(0.32, 1.62, 0), mat)
 	for s in [-1, 1]:
 		_box(host, "ear", Vector3(0.08, 0.16, 0.14), Vector3(0.05, 1.95, s * 0.28), mat)
@@ -311,6 +322,7 @@ static func _enderman(host: Node3D, mat: Material) -> void:
 static func _charlie(host: Node3D, mat: Material) -> void:
 	_box(host, "anim_body", Vector3(0.48, 0.95, 0.3), Vector3(0, 0.95, 0), mat)
 	_box(host, "anim_head", Vector3(0.42, 0.42, 0.42), Vector3(0, 1.6, 0), mat)
+	_eyes(host, Vector3(0.23, 1.66, 0), 0.09, Color(0.05, 0.04, 0.03))
 	_box(host, "anim_arm_0", Vector3(0.18, 0.7, 0.18), Vector3(-0.36, 1.15, 0), mat)
 	_box(host, "anim_arm_1", Vector3(0.18, 0.7, 0.18), Vector3(0.36, 1.15, 0), mat)
 	_box(host, "anim_leg_0", Vector3(0.2, 0.7, 0.2), Vector3(-0.12, 0.35, 0), mat)
@@ -322,8 +334,12 @@ static func _charlie(host: Node3D, mat: Material) -> void:
 
 static func _creeper(host: Node3D, mat: Material, hero: bool) -> void:
 	var head_s := 0.85 if hero else 0.52
+	var head_y := 1.45 if hero else 1.7
 	_box(host, "anim_body", Vector3(0.5, 1.15 if not hero else 0.7, 0.4), Vector3(0, 0.85, 0), mat)
-	_box(host, "anim_head", Vector3(head_s, head_s, head_s), Vector3(0, 1.7 if not hero else 1.45, 0), mat)
+	_box(host, "anim_head", Vector3(head_s, head_s, head_s), Vector3(0, head_y, 0), mat)
+	# Klassisches Creeper-Gesicht auf der Front (+X): Augen und hängender Mund.
+	_eyes(host, Vector3(head_s * 0.54, head_y + head_s * 0.12, 0), head_s * 0.19, Color(0.04, 0.04, 0.04), head_s * 0.15)
+	_box(host, "mouth", Vector3(head_s * 0.1, head_s * 0.3, head_s * 0.22), Vector3(head_s * 0.53, head_y - head_s * 0.2, 0), _col(Color(0.04, 0.04, 0.04)))
 	for i in range(4):
 		var x := -0.18 if i < 2 else 0.18
 		var z := -0.14 if i % 2 == 0 else 0.14
@@ -350,6 +366,7 @@ static func _slime(host: Node3D, mat: Material, magma: bool) -> void:
 static func _bug(host: Node3D, mat: Material, col: Color, sc: float) -> void:
 	var m := _col(col)
 	_box(host, "anim_head", Vector3(0.22 * sc, 0.16 * sc, 0.18 * sc), Vector3(0.28 * sc, 0.16 * sc, 0), m)
+	_eyes(host, Vector3(0.41 * sc, 0.19 * sc, 0), 0.05 * sc, Color(0.05, 0.04, 0.03), 0.04 * sc)
 	_box(host, "anim_body", Vector3(0.32 * sc, 0.16 * sc, 0.2 * sc), Vector3(0, 0.16 * sc, 0), m)
 	_box(host, "tail", Vector3(0.28 * sc, 0.14 * sc, 0.16 * sc), Vector3(-0.26 * sc, 0.14 * sc, 0), m)
 	for i in range(6):
@@ -397,7 +414,10 @@ static func _iron_golem(host: Node3D, _mat: Material) -> void:
 	var iron := _col(Color(0.72, 0.72, 0.75))
 	_box(host, "anim_body", Vector3(1.35, 1.5, 0.7), Vector3(0, 1.45, 0), iron)
 	_box(host, "anim_head", Vector3(0.7, 0.7, 0.7), Vector3(0, 2.4, 0), iron)
-	_box(host, "nose", Vector3(0.18, 0.22, 0.32), Vector3(0, 2.25, 0.45), iron)
+	_eyes(host, Vector3(0.37, 2.48, 0), 0.13, Color(0.05, 0.05, 0.06), 0.09)
+	# Front ist +X: die Nase darf nicht auf der Z-Achse sitzen, sonst zeigt sie
+	# zum rechten Seitenbildschirm des Modells.
+	_box(host, "nose", Vector3(0.32, 0.22, 0.18), Vector3(0.45, 2.25, 0), iron)
 	_box(host, "anim_arm_0", Vector3(0.42, 1.5, 0.42), Vector3(-0.95, 1.35, 0), iron)
 	_box(host, "anim_arm_1", Vector3(0.42, 1.5, 0.42), Vector3(0.95, 1.35, 0), iron)
 	_box(host, "anim_leg_0", Vector3(0.38, 0.95, 0.45), Vector3(-0.32, 0.48, 0), iron)
@@ -443,6 +463,7 @@ static func _god(host: Node3D, mat: Material, mob_id: String) -> void:
 	var m := _col(col, 0.35)
 	_box(host, "anim_body", Vector3(0.7, 1.35, 0.5), Vector3(0, 1.15, 0), m)
 	_box(host, "anim_head", Vector3(0.62, 0.62, 0.62), Vector3(0, 2.1, 0), m)
+	_eyes(host, Vector3(0.33, 2.17, 0), 0.12, Color(0.9, 0.85, 0.7), 0.09)
 	_box(host, "anim_arm_0", Vector3(0.26, 1.05, 0.26), Vector3(-0.52, 1.3, 0), m)
 	_box(host, "anim_arm_1", Vector3(0.26, 1.05, 0.26), Vector3(0.52, 1.3, 0), m)
 	_box(host, "anim_leg_0", Vector3(0.28, 0.9, 0.28), Vector3(-0.2, 0.45, 0), m)

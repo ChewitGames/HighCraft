@@ -680,6 +680,17 @@
 			"drops": []
 		},
 		{
+			"id": "red_dimension_portal",
+			"name": "Red Dimension Portal",
+			"hardness": -1.0,
+			"tool": "none",
+			"tier": 0,
+			"light": 11,
+			"transparent": true,
+			"solid": false,
+			"drops": []
+		},
+		{
 			"id": "heaven_portal",
 			"name": "Heaven Portal",
 			"hardness": -1.0,

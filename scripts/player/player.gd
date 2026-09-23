@@ -67,6 +67,8 @@ var _effect_second_accum: float = 0.0
 var _third_person_held_visual: Node3D = null
 var _first_person_held_visual: Node3D = null
 var _rendered_held_key: String = ""
+var _skin_dict: Dictionary = {}
+var _armor_key: String = ""
 var _remote_held_item_id: String = ""
 var _remote_held_enchantments: Dictionary = {}
 
@@ -78,17 +80,50 @@ signal effects_changed
 
 func _update_model_rotation() -> void:
 	var model = get_node_or_null("PlayerModel")
-	if model:
-		# Modell schaut in Bewegungsrichtung
-		var vel_flat = Vector3(velocity.x, 0, velocity.z)
-		if vel_flat.length() > 0.1:
-			model.look_at(global_position + vel_flat, Vector3.UP)
+	if model == null:
+		return
+	# Das Modell ist ein Kind des Spielerkörpers, dessen Yaw immer der Kamera
+	# folgt. Seine Front ist -Z, daher entspricht rotation == Vector3.ZERO dem
+	# Blick "gerade aus". Nur während der Bewegung wird der Körper in
+	# Bewegungsrichtung gedreht; bliebe die Drehung im Stand erhalten, würde der
+	# Spieler im Third-Person weiterhin die Seite zeigen.
+	var vel_flat = Vector3(velocity.x, 0, velocity.z)
+	if vel_flat.length() > 0.1:
+		model.look_at(global_position + vel_flat, Vector3.UP)
+	else:
+		model.rotation = Vector3.ZERO
 
 
 func play_arm_swing() -> void:
 	# Do not restart a swing every process frame while mining is held.
 	if _arm_swing_t <= ARM_SWING_DURATION * 0.35:
 		_arm_swing_t = ARM_SWING_DURATION
+
+
+func _drop_held(drop_all: bool) -> void:
+	# Wirft den gehaltenen Hotbar-Stack (drop_all = ganzer Stack) vor den Spieler.
+	if inventory == null:
+		return
+	var stack = inventory.held()
+	if stack == null:
+		return
+	var game_node = _find_game_node()
+	if game_node == null:
+		return
+	var n: int = stack.count if drop_all else 1
+	var ent = preload("res://scenes/item_entity.tscn").instantiate()
+	game_node.add_child(ent)
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.01:
+		forward = Vector3(0, 0, -1)
+	ent.global_position = global_position + Vector3(0, 1.2, 0) + forward.normalized() * 1.8
+	if ent.has_method("setup"):
+		ent.setup(stack.item_id, n, self)
+	stack.count -= n
+	if stack.count <= 0:
+		inventory.hotbar[inventory.selected] = null
+	Audio.play("player_item_drop", -8.0)
 
 
 func _update_player_animation(delta: float) -> void:
@@ -116,7 +151,8 @@ func _update_player_animation(delta: float) -> void:
 	if _arm_swing_t > 0.0:
 		_arm_swing_t = maxf(0.0, _arm_swing_t - delta)
 		var progress := 1.0 - (_arm_swing_t / ARM_SWING_DURATION)
-		right_target = -sin(progress * PI) * 1.75
+		# Positive X-Rotation schwingt den herabhängenden Arm nach vorne (-Z).
+		right_target = sin(progress * PI) * 1.75
 	right_arm.rotation.x = lerpf(right_arm.rotation.x, right_target, minf(1.0, delta * 20.0))
 	if _first_person_arm != null:
 		_first_person_arm.rotation.x = right_target * 0.58
@@ -183,7 +219,9 @@ func set_skin(skin_name: String, skin_data: Dictionary = {}) -> void:
 
 
 func _apply_skin_data(skin: Dictionary) -> void:
+	_skin_dict = skin
 	AvatarLoader.apply_to_player(self, skin)
+	_armor_key = ""  # Modell wurde neu gebaut -> Rüstung wieder aufsetzen
 	_build_first_person_arm(skin)
 	call_deferred("_apply_model_render_layers")
 	call_deferred("_apply_own_camera_cull")
@@ -302,6 +340,21 @@ func _update_held_item_visual() -> void:
 	if _first_person_arm != null and not bool(get_meta("remote_proxy", false)):
 		_first_person_held_visual = _make_held_visual(item_id, not enchantments.is_empty(), true)
 		_first_person_arm.add_child(_first_person_held_visual)
+	_update_armor_visuals()
+
+
+func _update_armor_visuals() -> void:
+	var model := get_node_or_null("PlayerModel")
+	if model == null or inventory == null:
+		return
+	var key := ""
+	for s in inventory.armor:
+		key += (str(s.item_id) if s != null else "") + ":" + (str(s.count) if s != null else "0") + "|"
+	if key == _armor_key:
+		return
+	_armor_key = key
+	AvatarLoader.apply_armor_visuals(model, _skin_dict, inventory.armor)
+	call_deferred("_apply_model_render_layers")
 
 
 
@@ -400,7 +453,8 @@ func _tick_status_effects(delta: float) -> void:
 		effects_changed.emit()
 	
 	
-var perspective: int = 0   # 0 = First, 1 = Third Behind, 2 = Third Front
+var perspective: int = 0   # 0 = First, 1 = Third Behind, 2 = Third Front, 3 = Third Left, 4 = Third Right
+const PERSPECTIVE_COUNT := 5
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -421,11 +475,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	# Perspective cycle: Ctrl+1 (keyboard) or R3 / Right Stick click (controller)
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_1 and event.ctrl_pressed:
-			perspective = (perspective + 1) % 3
+		if event.keycode == KEY_Q and not bool(get_meta("ui_input_locked", false)):
+			# Q wirft das gehaltene Item, Strg+Q den ganzen Stack. Das Inventar
+			# hat sein eigenes Q-Drophandling, solange es geöffnet ist.
+			_drop_held(event.ctrl_pressed)
+		elif event.keycode == KEY_1 and event.ctrl_pressed:
+			perspective = (perspective + 1) % PERSPECTIVE_COUNT
 			_apply_perspective()
 		elif event.keycode == KEY_F5:
-			perspective = (perspective + 1) % 3
+			perspective = (perspective + 1) % PERSPECTIVE_COUNT
 			_apply_perspective()
 		elif event.keycode == KEY_4 and event.ctrl_pressed:
 			toggle_sit()
@@ -434,9 +492,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			if sitting:
 				toggle_sit()
 	elif event is InputEventJoypadButton and event.pressed:
-		if event.button_index == HCPad.BTN_R3:
-			perspective = (perspective + 1) % 3
-			_apply_perspective()
+		# X / Square (linke Aktionstaste) wirft das gehaltene Item. Select/Back
+		# bleibt dem Chat / der Bildschirmtastatur vorbehalten. X war bisher der
+		# zweite Angriffs-Button, aber Angriff/Abbau/Bogen liegen ohnehin auf RT,
+		# daher ist X jetzt der Drop-Button. Inventar offen -> ui_input_locked
+		# und das UI macht sein eigenes Slot-Handling.
+		if event.button_index == HCPad.BTN_DROP and not bool(get_meta("ui_input_locked", false)):
+			_drop_held(Input.is_key_pressed(KEY_CTRL))
+		elif event.button_index == HCPad.BTN_R3:
+			var mounted = get_meta("riding_mob", null)
+			var on_dragon := mounted != null and is_instance_valid(mounted) and str(mounted.get("mob_id")) in ["red_dragon", "pink_dragon", "white_dragon"]
+			if not on_dragon:
+				perspective = (perspective + 1) % PERSPECTIVE_COUNT
+				_apply_perspective()
 				
 				
 func toggle_sit() -> void:
@@ -469,6 +537,10 @@ func _handle_space_tap() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Third-person camera sits on the yaw-only body; forward the head pitch so
+	# looking up/down still works without orbiting the camera position.
+	if perspective != 0 and is_instance_valid(camera):
+		camera.rotation.x = head.rotation.x
 	_tick_speed_boost(delta)
 	_tick_status_effects(delta)
 	_update_held_item_visual()
@@ -497,14 +569,18 @@ func _physics_process(delta: float) -> void:
 		return
 	if has_meta("riding_mob") and get_meta("riding_mob") != null:
 		var rm = get_meta("riding_mob")
-		if not is_instance_valid(rm) or Input.is_key_pressed(KEY_SHIFT) or HCPad.pressed(_joy_device(), HCPad.BTN_CANCEL):
+		var riding_dragon := is_instance_valid(rm) and str(rm.get("mob_id")) in ["red_dragon", "pink_dragon", "white_dragon"]
+		var wants_dismount := ((Input.is_key_pressed(KEY_CTRL) and Input.is_key_pressed(KEY_SHIFT)) or HCPad.pressed(_joy_device(), HCPad.BTN_R3)) if riding_dragon else (Input.is_key_pressed(KEY_SHIFT) or HCPad.pressed(_joy_device(), HCPad.BTN_CANCEL))
+		if not is_instance_valid(rm) or wants_dismount:
 			set_meta("riding_mob", null)
 			if is_instance_valid(rm):
 				rm.set_meta("rider", null)
 			return
-		var seat_height := 2.0 if str(rm.get("mob_id")) == "horse" else 1.25
+		var seat_height := 2.8 if riding_dragon else 2.0 if str(rm.get("mob_id")) == "horse" else 1.25
 		global_position = rm.global_position + Vector3(0, seat_height, 0)
 		velocity = Vector3.ZERO
+		if riding_dragon:
+			return
 		# Drive the mount from this player's own keyboard/controller axes. Keep the
 		# motion horizontal; forwarding the rider transform previously accumulated
 		# invalid vertical velocity and could launch both entities out of the world.
@@ -804,18 +880,55 @@ func eat(item_id: String) -> bool:
 	var it = Registry.get_item(item_id)
 	if it == null or it.get("type", "") != "food":
 		return false
-	if hunger >= max_hunger:
+	var enchanted_apple := item_id in ["enchanted_golden_apple", "enchanted_diamond_apple", "enchanted_emerald_apple"]
+	if hunger >= max_hunger and not enchanted_apple:
 		return false
 	hunger = minf(max_hunger, hunger + int(it.get("hunger", 0)))
 	saturation = minf(hunger, saturation + float(it.get("saturation", 0.0)))
+	if enchanted_apple:
+		health = minf(max_health, health + (12.0 if item_id == "enchanted_diamond_apple" else 8.0))
+		apply_status_effect("regeneration", 45.0, 2)
+		apply_status_effect("resistance", 180.0, 2 if item_id == "enchanted_emerald_apple" else 1)
+		if item_id == "enchanted_diamond_apple":
+			apply_status_effect("fire_resistance", 300.0, 1)
 	return true
 
 
 func _die() -> void:
 	dead = true
 	Audio.play("player_death", -2.0)
+	# Keep Inventory aus: Inventar genau im Todmoment wegschnappen und am
+	# Sterbeort fallen lassen. Keine Ghost-Items: nur der Schnappschuss wird
+	# gedroppt, das Inventar ist danach garantiert leer.
+	if has_node("/root/Config") and not get_node("/root/Config").keep_inventory_enabled:
+		_drop_inventory_on_death()
 	if GameSettings.can_respawn(game_mode):
 		respawn()
+
+
+func _drop_inventory_on_death() -> void:
+	if inventory == null:
+		return
+	var snapshot: Array = []
+	for bag in [inventory.hotbar, inventory.main, inventory.armor]:
+		for i in range(bag.size()):
+			var s = bag[i]
+			if s != null and s.count > 0:
+				snapshot.append([s.item_id, s.count])
+			bag[i] = null
+	if snapshot.is_empty():
+		return
+	var game_node = _find_game_node()
+	if game_node == null:
+		return
+	var base := global_position + Vector3(0, 1.0, 0)
+	for entry in snapshot:
+		var ent = preload("res://scenes/item_entity.tscn").instantiate()
+		game_node.add_child(ent)
+		ent.global_position = base + Vector3(randf_range(-0.7, 0.7), randf_range(0.0, 0.5), randf_range(-0.7, 0.7))
+		if ent.has_method("setup"):
+			ent.setup(str(entry[0]), int(entry[1]), self)
+	Audio.play("player_item_drop", -8.0)
 
 
 func respawn() -> void:
@@ -966,16 +1079,31 @@ func _apply_perspective() -> void:
 	_apply_own_camera_cull()
 	if _first_person_arm != null:
 		_first_person_arm.visible = perspective == 0
+	# In third person the camera is anchored to the yaw-only body. Leaving it
+	# under Head would let the mouse pitch swing the 4 m offset over/under the
+	# player (side views ended up looking from far below/above) and tilt the
+	# view. First person keeps it on Head so the view matches the head exactly.
+	if perspective == 0:
+		if camera.get_parent() != head:
+			camera.reparent(head, false)
+		camera.position = Vector3(0, 0.1, 0)
+		camera.rotation = Vector3.ZERO
+		return
+	if camera.get_parent() != self:
+		camera.reparent(self, false)
 	match perspective:
-		0:  # First Person — body hidden ONLY in this camera
-			camera.position = Vector3(0, 0.1, 0)
-			camera.rotation = Vector3.ZERO
 		1:  # Third Person von hinten
-			camera.position = Vector3(0, 0.6, 4.0)
-			camera.rotation = Vector3.ZERO
+			camera.position = Vector3(0, 2.2, 4.0)
+			camera.rotation = Vector3(head.rotation.x, 0.0, 0.0)
 		2:  # Third Person von vorne
-			camera.position = Vector3(0, 0.6, -4.0)
-			camera.rotation = Vector3(0, PI, 0)
+			camera.position = Vector3(0, 2.2, -4.0)
+			camera.rotation = Vector3(head.rotation.x, PI, 0.0)
+		3:  # Third Person von links (Spieler-Left ist -X)
+			camera.position = Vector3(-4.0, 2.2, 0)
+			camera.rotation = Vector3(head.rotation.x, -PI / 2.0, 0.0)
+		4:  # Third Person von rechts (Spieler-Right ist +X)
+			camera.position = Vector3(4.0, 2.2, 0)
+			camera.rotation = Vector3(head.rotation.x, PI / 2.0, 0.0)
 
 
 func _update_model_visibility() -> void:
@@ -991,7 +1119,7 @@ func _toggle_mouse() -> void:
 
 
 func perspective_name() -> String:
-	return ["First person", "Third (back)", "Third (front)"][perspective]
+	return ["First person", "Third (back)", "Third (front)", "Third (left)", "Third (right)"][perspective]
 	
 
 # Add this logic to your player.gd or create a separate component

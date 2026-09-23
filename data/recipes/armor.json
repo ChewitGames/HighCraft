@@ -27,5 +27,10 @@
   { "result": "gold_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "gold_ingot" } },
   { "result": "gold_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "gold_ingot" } },
   { "result": "gold_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "gold_ingot" } },
-  { "result": "gold_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "gold_ingot" } }
+  { "result": "gold_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "gold_ingot" } },
+
+  { "result": "emerald_helmet", "count": 1, "shape": ["MMM", "M M"], "ingredients": { "M": "emerald" } },
+  { "result": "emerald_chestplate", "count": 1, "shape": ["M M", "MMM", "MMM"], "ingredients": { "M": "emerald" } },
+  { "result": "emerald_leggings", "count": 1, "shape": ["MMM", "M M", "M M"], "ingredients": { "M": "emerald" } },
+  { "result": "emerald_boots", "count": 1, "shape": ["M M", "M M"], "ingredients": { "M": "emerald" } }
 ]

@@ -10,9 +10,11 @@ const SEA_LEVEL = 63
 const SIZE = 16
 
 
-static func maybe_build_overworld(chunk, rng: RandomNumberGenerator, heights: Dictionary) -> void:
+static func maybe_build_overworld(chunk, rng: RandomNumberGenerator, heights: Dictionary, biome: String = "overworld") -> void:
 	if rng.randf() < 0.07:
-		_build_village(chunk, rng, heights)
+		_build_village(chunk, rng, heights, biome)
+	if biome == "desert" and rng.randf() < 0.035:
+		_build_desert_temple(chunk, rng, heights)
 	if rng.randf() < 0.018:
 		_build_stronghold(chunk, rng)
 	if rng.randf() < 0.028:
@@ -53,7 +55,7 @@ static func _put(chunk, x: int, y: int, z: int, id: String) -> void:
 # ---------------------------------------------------------------------------
 # OVERWORLD — Village (several houses + path + farm)
 # ---------------------------------------------------------------------------
-static func _build_village(chunk, rng: RandomNumberGenerator, heights: Dictionary) -> void:
+static func _build_village(chunk, rng: RandomNumberGenerator, heights: Dictionary, biome: String = "overworld") -> void:
 	var ox = rng.randi_range(1, 4)
 	var oz = rng.randi_range(1, 4)
 	var surface = heights.get(Vector2i(ox + 4, oz + 4), SEA_LEVEL + 4)
@@ -64,8 +66,15 @@ static func _build_village(chunk, rng: RandomNumberGenerator, heights: Dictionar
 		_put(chunk, ox + t, surface, oz + 5, "cobblestone")
 		_put(chunk, ox + t, surface, oz + 6, "cobblestone")
 	# House A + B with real doors
-	_house(chunk, ox, oz, surface, "oak_planks", "oak_log", "oak_stairs")
-	_house(chunk, ox + 7, oz, surface, "cobblestone", "oak_log", "cobblestone_stairs")
+	var wall := "sandstone" if biome == "desert" else "snow_block" if biome == "ice" else "spruce_planks" if biome in ["snow", "spruce_forest"] else "oak_planks"
+	var log := "spruce_log" if biome in ["snow", "spruce_forest"] else "oak_log"
+	var roof := "spruce_planks" if biome in ["snow", "spruce_forest"] else "sandstone" if biome == "desert" else "oak_stairs"
+	if biome == "ice":
+		_igloo(chunk, ox, oz, surface)
+		_igloo(chunk, ox + 7, oz, surface)
+	else:
+		_house(chunk, ox, oz, surface, wall, log, roof)
+		_house(chunk, ox + 7, oz, surface, wall, log, roof)
 	# Blacksmith
 	_blacksmith(chunk, ox, oz + 8, surface)
 	# Church
@@ -85,6 +94,26 @@ static func _build_village(chunk, rng: RandomNumberGenerator, heights: Dictionar
 			_put(chunk, wx, surface, wz, "cobblestone")
 	_put(chunk, ox + 10, surface, oz + 9, "water")
 	_put(chunk, ox + 10, surface + 1, oz + 9, "air")
+
+
+static func _build_desert_temple(chunk, rng: RandomNumberGenerator, heights: Dictionary) -> void:
+	var surface := int(heights.get(Vector2i(8, 8), SEA_LEVEL + 3))
+	if surface < SEA_LEVEL:
+		return
+	for x in range(2, 14):
+		for z in range(2, 14):
+			_put(chunk, x, surface, z, "sandstone")
+			for y in range(surface + 1, surface + 7):
+				var edge := x in [2, 13] or z in [2, 13]
+				_put(chunk, x, y, z, "sandstone" if edge else "air")
+			_put(chunk, x, surface + 7, z, "sandstone")
+	for y in range(surface + 1, surface + 11):
+		for p in [Vector2i(3, 3), Vector2i(12, 3), Vector2i(3, 12), Vector2i(12, 12)]:
+			_put(chunk, p.x, y, p.y, "sandstone")
+	_put(chunk, 8, surface + 1, 2, "air")
+	_put(chunk, 8, surface + 2, 2, "air")
+	_put(chunk, 8, surface - 4, 8, "chest")
+	_put(chunk, 8, surface - 5, 8, "tnt")
 
 
 static func _house(chunk, ox: int, oz: int, surface: int, wall: String, log: String, stairs: String) -> void:
@@ -112,6 +141,19 @@ static func _house(chunk, ox: int, oz: int, surface: int, wall: String, log: Str
 	# Furniture
 	_put(chunk, ox + 1, surface + 1, oz + 2, "crafting_table")
 	_put(chunk, ox + 3, surface + 1, oz + 3, "chest")
+
+
+static func _igloo(chunk, ox: int, oz: int, surface: int) -> void:
+	for dx in range(0, 6):
+		for dz in range(0, 5):
+			for dy in range(0, 4):
+				var px := float(dx) - 2.5
+				var pz := float(dz) - 2.0
+				var edge := px * px + pz * pz + float(dy * dy) >= 7.0
+				_put(chunk, ox + dx, surface + dy, oz + dz, "snow_block" if edge else "air")
+	_put(chunk, ox + 2, surface + 1, oz, "door_oak")
+	_put(chunk, ox + 2, surface + 2, oz, "air")
+	_put(chunk, ox + 3, surface + 1, oz + 2, "chest")
 
 
 # ---------------------------------------------------------------------------
@@ -153,8 +195,9 @@ static func _build_cave_system(chunk, rng: RandomNumberGenerator, heights: Dicti
 	var surface = int(heights.get(Vector2i(x, z), SEA_LEVEL + 8))
 	# Mouth opens at the surface so caves are visible from above
 	var y = surface
-	for step in range(28):
-		var r = rng.randi_range(1, 2)
+	var length := rng.randi_range(30, 72)
+	for step in range(length):
+		var r = rng.randi_range(1, 3)
 		for dx in range(-r, r + 1):
 			for dy in range(-r, r + 1):
 				for dz in range(-r, r + 1):
@@ -166,6 +209,15 @@ static func _build_cave_system(chunk, rng: RandomNumberGenerator, heights: Dicti
 		x = clampi(x, 1, 14)
 		y = clampi(y, 5, surface)
 		z = clampi(z, 1, 14)
+		if step > 10 and step % 14 == 0:
+			# Chambers make caves vary in size and contents.
+			for dx in range(-4, 5):
+				for dy in range(-2, 3):
+					for dz in range(-4, 5):
+						if dx * dx + dz * dz + dy * dy * 2 < 17:
+							_put(chunk, x + dx, y + dy, z + dz, "air")
+			if rng.randf() < 0.35:
+				_put(chunk, x, y, z, "chest")
 	# Occasional ore pocket
 	if rng.randf() < 0.4:
 		_put(chunk, x, y, z, "coal_ore")

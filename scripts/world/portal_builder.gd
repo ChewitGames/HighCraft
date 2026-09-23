@@ -12,6 +12,12 @@ static func try_light_hell(world, renderer, origin: Vector3i) -> bool:
 static func try_light_heaven(world, renderer, origin: Vector3i) -> bool:
 	return _try_light_frame(world, renderer, origin, "glowstone", "heaven_portal")
 
+static func try_light_red_dimension(world, renderer, origin: Vector3i) -> bool:
+	for wool in ["white_wool", "orange_wool", "magenta_wool", "light_blue_wool", "yellow_wool", "lime_wool", "pink_wool", "gray_wool", "light_gray_wool", "cyan_wool", "purple_wool", "blue_wool", "brown_wool", "green_wool", "red_wool", "black_wool"]:
+		if _try_light_frame(world, renderer, origin, wool, "red_dimension_portal"):
+			return true
+	return false
+
 static func _try_light_frame(world, renderer, origin: Vector3i, frame_id: String, portal_id: String) -> bool:
 	for axis in ["x", "z"]:
 		var found = _find_from_cell(world, origin, axis, frame_id, portal_id)

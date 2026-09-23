@@ -30,5 +30,10 @@
   { "result": "fishing_rod", "count": 1, "shape": ["  S", " ST", "S T"], "ingredients": { "S": "stick", "T": "string" } },
   { "result": "bucket", "count": 1, "shape": ["I I", " I "], "ingredients": { "I": "iron_ingot" } },
   { "result": "compass", "count": 1, "shape": [" I ", "IRI", " I "], "ingredients": { "I": "iron_ingot", "R": "redstone" } },
-  { "result": "clock", "count": 1, "shape": [" G ", "GRG", " G "], "ingredients": { "G": "gold_ingot", "R": "redstone" } }
+  { "result": "clock", "count": 1, "shape": [" G ", "GRG", " G "], "ingredients": { "G": "gold_ingot", "R": "redstone" } },
+  { "result": "emerald_pickaxe", "count": 1, "shape": ["MMM", " S ", " S "], "ingredients": { "M": "emerald", "S": "stick" } },
+  { "result": "emerald_axe", "count": 1, "shape": ["MM", "MS", " S"], "ingredients": { "M": "emerald", "S": "stick" } },
+  { "result": "emerald_shovel", "count": 1, "shape": ["M", "S", "S"], "ingredients": { "M": "emerald", "S": "stick" } },
+  { "result": "emerald_sword", "count": 1, "shape": ["M", "M", "S"], "ingredients": { "M": "emerald", "S": "stick" } },
+  { "result": "emerald_hoe", "count": 1, "shape": ["MM", " S", " S"], "ingredients": { "M": "emerald", "S": "stick" } }
 ]

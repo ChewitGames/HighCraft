@@ -63,6 +63,7 @@ var _last_thread_start_frame: int = -1
 var _last_result_apply_frame: int = -1
 var _deferred_pump_scheduled: bool = false
 var _rebuild_versions: Dictionary = {}
+var _chunk_layer_cache: Dictionary = {}  # Vector2i -> last applied layer mask
 var _edit_thread: Thread = null
 var _edit_semaphore: Semaphore = Semaphore.new()
 var _edit_mutex: Mutex = Mutex.new()
@@ -99,6 +100,7 @@ func setup(p_world) -> void:
 	_ready_results.clear()
 	_rebuild_versions.clear()
 	_dedicated_versions.clear()
+	_chunk_layer_cache.clear()
 	_inflight = 0
 	_last_radius = -1
 	_last_centers.clear()
@@ -275,6 +277,12 @@ func remesh_chunk_now(cx: int, cz: int) -> void:
 	_queue_chunk_rebuild(Vector2i(cx, cz), true)
 
 
+func request_priority_build(cx: int, cz: int) -> void:
+	# Dimension travel / respawn: get this area meshed ahead of normal streaming
+	# priority. Generates + meshes on a worker; never blocks the main thread.
+	_queue_chunk_rebuild(Vector2i(cx, cz), true)
+
+
 func _apply_sections(cx: int, cz: int, sections: Dictionary, finish_request: bool = true) -> void:
 	var key = Vector2i(cx, cz)
 	# Runtime changes update the existing holder atomically. Keeping the node in
@@ -289,6 +297,8 @@ func _apply_sections(cx: int, cz: int, sections: Dictionary, finish_request: boo
 		add_child(holder)
 	for section_y in sections.keys():
 		_apply_section(holder, int(section_y), sections[section_y])
+	# New sections were just created — they always need their layers set once.
+	_chunk_layer_cache.erase(key)
 	_apply_chunk_render_layers(holder, key)
 	loaded[key] = holder
 	if finish_request:
@@ -353,6 +363,7 @@ func _destroy_chunk(cx: int, cz: int) -> void:
 		return
 	var h = loaded[key]
 	loaded.erase(key)
+	_chunk_layer_cache.erase(key)
 	_release_holder(h)
 
 
@@ -474,6 +485,12 @@ func _apply_chunk_render_layers(holder: Node, key: Vector2i) -> void:
 			if abs(key.x - center.x) <= _visibility_radius \
 					and abs(key.y - center.y) <= _visibility_radius:
 				layer_mask |= 1 << (SPLIT_CHUNK_FIRST_BIT + i)
+	# Streaming calls this for EVERY loaded chunk on each chunk-boundary crossing.
+	# With 4 players spread out that is hundreds of holders × ~16 sections being
+	# re-walked per hop. Skip chunks whose mask has not changed.
+	if int(_chunk_layer_cache.get(key, -1)) == layer_mask:
+		return
+	_chunk_layer_cache[key] = layer_mask
 	# A queued result can finish just outside all current player ranges. Keep it
 	# hidden until streaming removes it instead of leaking it into every camera.
 	for child in holder.get_children():
@@ -754,6 +771,7 @@ func set_world(p_world) -> void:
 	_build_queue.clear()
 	_rebuild_versions.clear()
 	_dedicated_versions.clear()
+	_chunk_layer_cache.clear()
 	_request_epoch += 1
 	_last_radius = -1
 	_last_centers.clear()

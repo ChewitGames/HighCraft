@@ -300,6 +300,18 @@
 			9.6
 		],
 		[
+			"enchanted_diamond_apple",
+			"Enchanted Diamond Apple",
+			6,
+			14.0
+		],
+		[
+			"enchanted_emerald_apple",
+			"Enchanted Emerald Apple",
+			6,
+			14.0
+		],
+		[
 			"carrot",
 			"Carrot",
 			3,
@@ -612,7 +624,8 @@
 		"stone",
 		"copper",
 		"iron",
-		"diamond"
+		"diamond",
+		"emerald"
 	],
 	"tier_stats": {
 		"wood": {
@@ -639,6 +652,11 @@
 			"tier": 5,
 			"durability": 1561,
 			"damage": 7
+		},
+		"emerald": {
+			"tier": 6,
+			"durability": 1900,
+			"damage": 8
 		}
 	},
 	"damage_bonus": {
@@ -660,6 +678,7 @@
 		"stone",
 		"iron",
 		"diamond",
+		"emerald",
 		"gold",
 		"chainmail"
 	],
@@ -694,6 +713,12 @@
 			"leggings": 6,
 			"boots": 3
 		},
+		"emerald": {
+			"helmet": 4,
+			"chestplate": 8,
+			"leggings": 7,
+			"boots": 4
+		},
 		"gold": {
 			"helmet": 2,
 			"chestplate": 5,
@@ -713,6 +738,7 @@
 		"stone": 180,
 		"iron": 240,
 		"diamond": 400,
+		"emerald": 460,
 		"gold": 112,
 		"chainmail": 240
 	}

@@ -6,18 +6,43 @@ var _cache: Dictionary = {}
 func get_texture(id: String) -> Texture2D:
 	if _cache.has(id):
 		return _cache[id]
-	
+
 	# Echte Textur zuerst versuchen
 	var path = "res://textures/" + id + ".png"
 	if ResourceLoader.exists(path):
 		var tex = load(path)
 		_cache[id] = tex
 		return tex
-	
+
 	# Prozedurale Fallback-Textur generieren
 	var tex = _generate_fallback(id)
 	_cache[id] = tex
 	return tex
+
+
+# Textur für 3D-Drops/Modelle: der transparente Icon-Hintergrund wird durch die
+# Basisfarbe des Items ersetzt, damit auf opaken Materialien nichts schwarz
+# rendert. Block-Texturen sind ohnehin deckend und werden unverändert genutzt.
+func get_model_texture(id: String) -> Texture2D:
+	var key := "model:" + id
+	if _cache.has(key):
+		return _cache[key]
+	var icon: Texture2D = get_texture(id)
+	var img: Image = null
+	if icon is ImageTexture:
+		img = (icon as ImageTexture).get_image()
+	if img == null:
+		_cache[key] = icon
+		return icon
+	img = img.duplicate()
+	var base := _get_color(id)
+	for y in range(img.get_height()):
+		for x in range(img.get_width()):
+			if img.get_pixel(x, y).a < 0.5:
+				img.set_pixel(x, y, base)
+	var out := ImageTexture.create_from_image(img)
+	_cache[key] = out
+	return out
 	
 func preload_all() -> void:
 	print("Texture Generator: Preloading all textures...")
@@ -2031,14 +2056,15 @@ func _get_color(id: String) -> Color:
 	if "iron_golem" in id:               return Color(0.7, 0.7, 0.75)
 
 # === NEUTRAL MOBS ===
-	if "erebite" in id:                  return Color(0.2, 0.15, 0.3)     # Enderman-Style
+	if "erebite" in id or "erebus_foreigner" in id:  return Color(0.2, 0.15, 0.3)     # Enderman-Style
 	if "zombie_pigman" in id:            return Color(0.7, 0.5, 0.45)
 	if "wolf" in id:                     return Color(0.6, 0.55, 0.5)
 	if "spider" in id or "cave_spider" in id: return Color(0.3, 0.25, 0.2)
 
 # === HOSTILE MOBS ===
 	if "zombie" in id or "husk" in id or "zombie_villager" in id: return Color(0.35, 0.55, 0.3)
-	if "skeleton" in id or "stray" in id or "wither_skeleton" in id: return Color(0.9, 0.9, 0.85)
+	if "wither_skeleton" in id:          return Color(0.25, 0.23, 0.25)
+	if "skeleton" in id or "stray" in id: return Color(0.9, 0.9, 0.85)
 	if "creeper" in id:                  return Color(0.2, 0.55, 0.2)
 	if "witch" in id:                    return Color(0.4, 0.25, 0.45)
 	if "slime" in id:                    return Color(0.4, 0.75, 0.35)
@@ -2051,6 +2077,9 @@ func _get_color(id: String) -> Color:
 
 # === BOSSES ===
 	if "erebus_sovereign" in id or "ender_dragon" in id: return Color(0.2, 0.1, 0.3)
+	if "red_dragon" in id:               return Color(0.75, 0.1, 0.08)
+	if "pink_dragon" in id:              return Color(0.9, 0.35, 0.6)
+	if "white_dragon" in id:             return Color(0.92, 0.94, 0.98)
 	if "wither" in id:                   return Color(0.15, 0.15, 0.15)
 
 # === SPECIAL ===

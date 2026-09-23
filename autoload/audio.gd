@@ -115,8 +115,21 @@ func _load_sfx_manifest(folder: String, names: Array, extension: String, aliases
 
 func _load_one_sfx(path: String, aliases: Dictionary) -> void:
 	if not ResourceLoader.exists(path):
-		push_warning("[Audio] exported SFX missing: " + path)
-		return
+		# Sound files were reorganized between the two audio folders. Try the
+		# sibling folder before giving up so a moved clip still loads (and stops
+		# emitting a misleading "missing" warning).
+		var fname := path.get_file()
+		var base := path.get_base_dir()
+		var sibling := ""
+		if base.ends_with("highcraft_mobs_sounds"):
+			sibling = "res://assets/highcraft_sounds_effects/"
+		elif base.ends_with("highcraft_sounds_effects"):
+			sibling = "res://assets/highcraft_mobs_sounds/"
+		if sibling != "" and ResourceLoader.exists(sibling + fname):
+			path = sibling + fname
+		else:
+			push_warning("[Audio] exported SFX missing: " + path)
+			return
 	var stream = load(path)
 	if stream == null:
 		push_warning("[Audio] failed to load SFX: " + path)

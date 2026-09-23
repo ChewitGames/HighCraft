@@ -1618,6 +1618,18 @@
 			]
 		},
 		{
+			"id":"red_dragon","name":"Red Dragon","hp":240,"damage":14,"speed":14,"behavior":"flying_boss","category":"boss","dims":["red_dimension"],"ai":["fly","attack"],"drops":[["dragon_egg",1,1.0]],"xp":120,
+			"color":[0.85,0.08,0.04]
+		},
+		{
+			"id":"pink_dragon","name":"Pink Dragon","hp":210,"damage":12,"speed":15,"behavior":"flying_boss","category":"boss","dims":["red_dimension"],"ai":["fly","attack"],"drops":[["dragon_egg",1,0.5]],"xp":100,
+			"color":[1.0,0.35,0.65]
+		},
+		{
+			"id":"white_dragon","name":"White Dragon","hp":220,"damage":13,"speed":15,"behavior":"flying_boss","category":"boss","dims":["red_dimension"],"ai":["fly","attack"],"drops":[["dragon_egg",1,0.5]],"xp":110,
+			"color":[0.95,0.97,1.0]
+		},
+		{
 			"id": "dionysos",
 			"name": "Dionysos",
 			"category": "boss",

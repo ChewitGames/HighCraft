@@ -4,6 +4,8 @@
   { "result": "pumpkin_pie", "count": 1, "shapeless": ["pumpkin", "sugar", "egg"] },
   { "result": "cookie", "count": 8, "shape": ["WCW"], "ingredients": { "W": "wheat", "C": "coal" } },
   { "result": "golden_apple", "count": 1, "shape": ["GGG", "GAG", "GGG"], "ingredients": { "G": "gold_ingot", "A": "apple" } },
+  { "result": "enchanted_diamond_apple", "count": 1, "shape": ["DDD", "DAD", "DDD"], "ingredients": { "D": "diamond", "A": "apple" } },
+  { "result": "enchanted_emerald_apple", "count": 1, "shape": ["EEE", "EAE", "EEE"], "ingredients": { "E": "emerald", "A": "apple" } },
   { "result": "paper", "count": 3, "shape": ["SSS"], "ingredients": { "S": "sugar" } },
   { "result": "book", "count": 1, "shapeless": ["paper", "paper", "paper", "leather"] },
   { "result": "bone_meal", "count": 3, "shapeless": ["bone"] },

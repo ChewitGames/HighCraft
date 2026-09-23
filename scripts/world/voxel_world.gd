@@ -57,12 +57,27 @@ func get_chunk(cx: int, cz: int) -> Chunk:
 
 
 func get_block(x: int, y: int, z: int) -> String:
+	# Gameplay reads (mob ticks, fluids, fire, hoppers, portals, pressure
+	# plates, redstone) call this constantly. Generating a missing chunk here
+	# meant every periodic scan into unloaded terrain stalled the main thread
+	# for the whole terrain-generation + meshing cost — the random mid-game
+	# freeze. Missing chunks now read as air; streaming fills them in and the
+	# tick simply skips that cell until then (unloaded chunks don't tick in
+	# Minecraft either). Spawn/placement code that genuinely needs the real
+	# ground uses surface_height() or set_block()/get_chunk() directly.
 	if y < 0 or y >= WORLD_HEIGHT:
 		return "air"
 	var cx = floori(float(x) / CHUNK_SIZE)
 	var cz = floori(float(z) / CHUNK_SIZE)
-	var c = get_chunk(cx, cz)
+	var key = Vector2i(cx, cz)
+	if not chunks.has(key):
+		return "air"
+	var c = chunks[key]
 	return c.get_local(x - cx * CHUNK_SIZE, y, z - cz * CHUNK_SIZE)
+
+
+func is_chunk_loaded(x: int, z: int) -> bool:
+	return chunks.has(Vector2i(floori(float(x) / CHUNK_SIZE), floori(float(z) / CHUNK_SIZE)))
 
 
 func get_block_no_gen(x: int, y: int, z: int) -> String:
@@ -162,8 +177,15 @@ func surface_height(x: int, z: int) -> int:
 	var start_y := WORLD_HEIGHT - 1
 	if generator != null and "dimension" in generator and str(generator.dimension) == "hell":
 		start_y = 115
+	# Resolve the column ONCE. The old loop called get_block() per y-level,
+	# which re-resolved (and on a cold column, generated) the chunk 128 times.
+	var cx = floori(float(x) / CHUNK_SIZE)
+	var cz = floori(float(z) / CHUNK_SIZE)
+	var c = get_chunk(cx, cz)
+	var lx = x - cx * CHUNK_SIZE
+	var lz = z - cz * CHUNK_SIZE
 	for y in range(start_y, -1, -1):
-		var b = get_block(x, y, z)
+		var b = c.get_local(lx, y, lz)
 		if b != "air" and b != "water" and b != "lava":
 			return y
 	return 0

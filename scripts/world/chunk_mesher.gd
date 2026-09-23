@@ -32,6 +32,15 @@ var _fx_water: bool = false
 var _fx_wind: bool = false
 var _cache_ready: bool = false
 var _plant_ids: Dictionary = {}
+# Main-thread snapshot of static block properties. Worker threads must NOT
+# resolve the Registry autoload (or read its Dictionary) while the main thread
+# runs: that race surfaces as "Bad address index" on is_opaque — the single
+# hottest per-face call — and burns frame time in split-screen with 4 meshers.
+# Block definitions never change at runtime, so a warm_cache() snapshot is exact.
+var _block_opacity: Dictionary = {}   # id -> bool
+var _block_solid: Dictionary = {}     # id -> bool
+var _block_model: Dictionary = {}     # id -> Dictionary
+var _registry_snapshot: bool = false
 var _water_shader: Shader
 var _plant_wind_shader: Shader
 var _two_sided_shader: Shader
@@ -58,7 +67,7 @@ func build(world, chunk, defer_mesh_creation: bool = false, section_y: int = -1)
 		var wx = base_x + lx
 		var wz = base_z + lz
 
-		var model = Registry.get_block_model(id)
+		var model = _get_model_cached(id)
 		var is_liquid = LIQUIDS.has(id)
 
 		var model_type := str(model.get("type", ""))
@@ -115,7 +124,7 @@ func build(world, chunk, defer_mesh_creation: bool = false, section_y: int = -1)
 				_:
 					handled = false
 			if handled:
-				if not is_liquid and Registry.is_solid(id) and model_type != "portal":
+				if not is_liquid and _is_solid_cached(id) and model_type != "portal":
 					collider_cells[Vector3i(lx, ly, lz)] = true
 				continue
 
@@ -138,7 +147,7 @@ func build(world, chunk, defer_mesh_creation: bool = false, section_y: int = -1)
 			var show = false
 			if is_liquid:
 				show = (nb == "air")
-			elif not Registry.is_opaque(nb):
+			elif not _is_opaque_cached(nb):
 				show = true
 
 			if not show:
@@ -150,16 +159,25 @@ func build(world, chunk, defer_mesh_creation: bool = false, section_y: int = -1)
 					"v": PackedVector3Array(),
 					"n": PackedVector3Array(),
 					"uv": PackedVector2Array(),
+					"col": PackedColorArray(),
 					"idx": PackedInt32Array()
 				}
 			var buf = groups[id]
 			var start = buf["v"].size()
+
+			# Minecraft-style ambient occlusion per corner. Liquids are skipped
+			# (water/lava never carried AO in 1.6.4).
+			var ao := [1.0, 1.0, 1.0, 1.0]
+			if not is_liquid:
+				for i in range(4):
+					ao[i] = _ao_at(world, chunk, base_x, base_z, lx, ly, lz, f["n"], f["v"][i])
 
 			for i in range(4):
 				var vv = f["v"][i]
 				buf["v"].append(Vector3(lx + vv.x, ly + vv.y, lz + vv.z))
 				buf["n"].append(f["n"])
 				buf["uv"].append(UVS[i])
+				buf["col"].append(Color(ao[i], ao[i], ao[i], 1.0))
 
 			buf["idx"].append(start)
 			buf["idx"].append(start + 1)
@@ -168,7 +186,7 @@ func build(world, chunk, defer_mesh_creation: bool = false, section_y: int = -1)
 			buf["idx"].append(start + 2)
 			buf["idx"].append(start + 3)
 
-			if not is_liquid and Registry.is_solid(id):
+			if not is_liquid and _is_solid_cached(id):
 				collider_cells[Vector3i(lx, ly, lz)] = true
 
 	if defer_mesh_creation:
@@ -455,9 +473,73 @@ func _ensure_group(groups: Dictionary, id: String) -> Dictionary:
 			"v": PackedVector3Array(),
 			"n": PackedVector3Array(),
 			"uv": PackedVector2Array(),
+			"col": PackedColorArray(),
 			"idx": PackedInt32Array()
 		}
 	return groups[id]
+
+
+# --- Minecraft-style ambient occlusion -------------------------------------
+# Brightness for the 4 AO levels (0 = fully surrounded .. 3 = open).
+const AO_LEVELS = [0.45, 0.62, 0.80, 1.0]
+
+func _ao_at(world, chunk, base_x: int, base_z: int, lx: int, ly: int, lz: int,
+		normal: Vector3, corner: Vector3) -> float:
+	# The vertex is shaded by the three blocks that touch it in the neighbour
+	# layer (the two along the face edges and the diagonal corner).
+	var nx = int(round(normal.x))
+	var ny = int(round(normal.y))
+	var nz = int(round(normal.z))
+	# Tangent axes = the two axes the normal does not use.
+	var a0 = -1
+	var a1 = -1
+	if nx != 0:
+		a0 = 1
+		a1 = 2
+	elif ny != 0:
+		a0 = 0
+		a1 = 2
+	else:
+		a0 = 0
+		a1 = 1
+	var d0 = 1 if corner[a0] > 0.5 else -1
+	var d1 = 1 if corner[a1] > 0.5 else -1
+	var px = lx + nx
+	var py = ly + ny
+	var pz = lz + nz
+	var s1 = _opaque_at(world, chunk, base_x, base_z, px, py, pz, a0, d0, 0, 0)
+	var s2 = _opaque_at(world, chunk, base_x, base_z, px, py, pz, 0, 0, a1, d1)
+	var corner_occ = _opaque_at(world, chunk, base_x, base_z, px, py, pz, a0, d0, a1, d1)
+	if s1 and s2:
+		return AO_LEVELS[0]
+	var level = 3 - (int(s1) + int(s2) + int(corner_occ))
+	return AO_LEVELS[clampi(level, 0, 3)]
+
+
+func _opaque_at(world, chunk, base_x: int, base_z: int,
+		x: int, y: int, z: int, a0: int, d0: int, a1: int, d1: int) -> bool:
+	if a0 == 0:
+		x += d0
+	elif a0 == 1:
+		y += d0
+	elif a0 == 2:
+		z += d0
+	if a1 == 0:
+		x += d1
+	elif a1 == 1:
+		y += d1
+	elif a1 == 2:
+		z += d1
+	if y < 0:
+		return true # below the world is solid → bottom faces stay shaded
+	if world == null:
+		return false
+	var nb: String
+	if x >= 0 and x < CHUNK_SIZE and z >= 0 and z < CHUNK_SIZE:
+		nb = chunk.get_local(x, y, z)
+	else:
+		nb = world.get_block_no_gen(base_x + x, y, base_z + z)
+	return _is_opaque_cached(nb)
 
 
 func _is_rs_connect(world, x: int, y: int, z: int) -> bool:
@@ -502,7 +584,7 @@ func _add_redstone_wire(groups: Dictionary, lx: int, ly: int, lz: int, id: Strin
 			continue
 		var side_id = str(world.get_block_no_gen(sx, gy, sz) if world.has_method("get_block_no_gen") else "")
 		var up_id = str(world.get_block_no_gen(sx, gy + 1, sz) if world.has_method("get_block_no_gen") else "")
-		if side_id != "air" and side_id != "" and Registry.is_opaque(side_id) and up_id == "redstone":
+		if side_id != "air" and side_id != "" and _is_opaque_cached(side_id) and up_id == "redstone":
 			# vertical strip on wall
 			_add_box(b, lx, ly, lz, side["x0"], side["x1"], side["z0"], side["z1"], 0.0, 1.0)
 
@@ -605,6 +687,8 @@ func _add_lever(groups: Dictionary, lx: int, ly: int, lz: int, id: String) -> vo
 
 
 func _add_quad(b: Dictionary, lx: int, ly: int, lz: int, v0: Vector3, v1: Vector3, v2: Vector3, v3: Vector3, normal: Vector3) -> void:
+	if not b.has("col"):
+		b["col"] = PackedColorArray()
 	var start = b["v"].size()
 	b["v"].append(Vector3(lx + v0.x, ly + v0.y, lz + v0.z))
 	b["v"].append(Vector3(lx + v1.x, ly + v1.y, lz + v1.z))
@@ -614,6 +698,8 @@ func _add_quad(b: Dictionary, lx: int, ly: int, lz: int, v0: Vector3, v1: Vector
 	for i in 4:
 		b["n"].append(normal)
 		b["uv"].append(UVS[i])
+		# Special models do not compute AO → fully lit white.
+		b["col"].append(Color(1.0, 1.0, 1.0, 1.0))
 
 	b["idx"].append(start)
 	b["idx"].append(start + 1)
@@ -635,6 +721,8 @@ func _to_mesh(groups: Dictionary):
 		arrays[Mesh.ARRAY_VERTEX] = buf["v"]
 		arrays[Mesh.ARRAY_NORMAL] = buf["n"]
 		arrays[Mesh.ARRAY_TEX_UV] = buf["uv"]
+		if buf.has("col") and buf["col"].size() == buf["v"].size():
+			arrays[Mesh.ARRAY_COLOR] = buf["col"]
 		arrays[Mesh.ARRAY_INDEX] = buf["idx"]
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		mesh.surface_set_material(mesh.get_surface_count() - 1, _material_for(id))
@@ -665,7 +753,58 @@ func warm_cache() -> void:
 			"water", "lava", "bedrock", "coal_ore", "iron_ore", "glass", "snow",
 			"oak_planks", "cobblestone", "clay", "ice"]:
 		_material_for(id)
+	_snapshot_block_registry()
 	_cache_ready = true
+
+
+func _snapshot_block_registry() -> void:
+	# Must run on the main thread (called from warm_cache). Resolve the node by
+	# path ONCE here so worker threads never touch the "Registry" global name.
+	_block_opacity.clear()
+	_block_solid.clear()
+	_block_model.clear()
+	var reg: Node = null
+	var loop = Engine.get_main_loop()
+	if loop != null and loop.root != null:
+		reg = loop.root.get_node_or_null("Registry")
+	if reg == null or not reg.has_method("is_opaque"):
+		_registry_snapshot = false
+		return
+	for id in reg.blocks.keys():
+		var sid := str(id)
+		_block_opacity[sid] = bool(reg.is_opaque(sid))
+		_block_solid[sid] = bool(reg.is_solid(sid))
+		_block_model[sid] = reg.get_block_model(sid)
+	# air/empty are special-cased by Registry.is_opaque (both non-opaque).
+	_block_opacity["air"] = false
+	_block_opacity[""] = false
+	_block_solid["air"] = true
+	_block_solid[""] = true
+	_registry_snapshot = true
+
+
+# Worker-safe lookups: read the snapshot when warm, otherwise fall back to the
+# real Registry (only safe on the main thread, e.g. a synchronous editor build).
+func _is_opaque_cached(id: String) -> bool:
+	if _registry_snapshot:
+		if _block_opacity.has(id):
+			return bool(_block_opacity[id])
+		return true   # unknown id -> opaque, same as Registry's null fallback
+	return Registry.is_opaque(id)
+
+
+func _is_solid_cached(id: String) -> bool:
+	if _registry_snapshot:
+		if _block_solid.has(id):
+			return bool(_block_solid[id])
+		return true   # unknown id -> solid, same as Registry's null fallback
+	return Registry.is_solid(id)
+
+
+func _get_model_cached(id: String) -> Dictionary:
+	if _registry_snapshot and _block_model.has(id):
+		return _block_model[id]
+	return Registry.get_block_model(id)
 
 
 func _get_water_shader() -> Shader:
@@ -735,6 +874,8 @@ func _material_for(id: String) -> Material:
 		var sd := StandardMaterial3D.new()
 		sd.albedo_texture = Textures.get_texture(id)
 		sd.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+		# Meshes now carry baked AO in their vertex colour stream.
+		sd.vertex_color_use_as_albedo = true
 		# Chunk cubes and special models use mixed winding and several intentionally
 		# thin/two-sided surfaces. Global face culling breaks valid block sides.
 		sd.cull_mode = BaseMaterial3D.CULL_DISABLED

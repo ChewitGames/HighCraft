@@ -152,10 +152,14 @@ func set_sky_parameter(parameter: StringName, value: Variant) -> void:
 func _update_safe_sky_colors() -> void:
 	var elevation := sin(_safe_sky_time * TAU - PI * 0.5)
 	var daylight := smoothstep(-0.12, 0.18, elevation)
-	var night_color := Color(0.008, 0.015, 0.055)
-	var day_color := Color(0.48, 0.68, 0.94)
+	var night_color := Color(0.004, 0.006, 0.014)
+	var day_color := Color(0.455, 0.655, 1.0)
 	var color := night_color.lerp(day_color, daylight)
 	color = color.lerp(color * 0.55, clampf(_safe_sky_rain, 0.0, 1.0))
+	# Match the sky shader's day → dusk → night fog curve on the terrain too.
+	var fog := Color(0.030, 0.045, 0.090).lerp(Color(0.620, 0.722, 0.965), daylight)
+	var dusk_amt := exp(-pow(elevation / 0.22, 2.0))
+	fog = fog.lerp(Color(0.850, 0.500, 0.250), dusk_amt * 0.5)
 	for cam in cameras:
 		if cam != null and is_instance_valid(cam) and cam.environment != null:
 			var target: Environment = cam.environment
@@ -176,7 +180,8 @@ func _update_safe_sky_colors() -> void:
 				else:
 					target.background_color = color
 					target.ambient_light_color = color.lerp(Color.WHITE, 0.38)
-					target.ambient_light_energy = lerpf(0.62, 0.88, daylight)
+					target.ambient_light_energy = lerpf(0.75, 1.1, daylight)
+					target.fog_light_color = fog
 
 
 func refresh_camera_environments(source_env: Environment) -> void:
